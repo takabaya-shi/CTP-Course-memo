@@ -9,7 +9,7 @@ ChaetSheet for Pwn Reversing of CTF
 ## 静的解析
 ### radare2
 - radare2 ./binary
-- afl
+- afl   
 関数の一覧を表示
-- pdf @main
+- pdf @main   
 main関数を逆アセンブル
