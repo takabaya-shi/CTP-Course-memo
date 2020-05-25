@@ -47,9 +47,9 @@ main関数を逆アセンブル
 ### Ghidra
 - `./ghirdaRun`   
 でGhidraを起動。
-- [File] -> [import file]でbinaryをインポート   
-- [Symbol Tree](左真ん中) -> [Functions]で関数を確認。ダブルクリックでそこに移動。   
-- [Decompile](右下) でコンパイル結果を表示
+- `[File]` -> `[import file]`でbinaryをインポート   
+- `[Symbol Tree]`(左真ん中) -> `[Functions]`で関数を確認。ダブルクリックでそこに移動。   
+- `[Decompile]`(右下) でコンパイル結果を表示
 ### angr
 以下でInstall   
 ```txt
