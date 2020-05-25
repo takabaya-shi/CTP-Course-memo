@@ -93,7 +93,11 @@ if sm.found:
         print(i.solver.eval(sym_arg,cast_to=bytes).decode('utf-8','ignore'))
 
 ```
-### よく見るかたまり
+## exploit
+### stack base BOF
+- `socat TCP-LISTEN:4000,reuseaddr,fork EXEC:./file 2> /dev/null &`   
+
+## よく見るかたまり
 #### strcmp
 ```txt
    0x55555555529e <main+293>:	lea    rax,[rbp-0x90]
