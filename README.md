@@ -31,6 +31,15 @@ main関数を逆アセンブル
 - gdb -q ./file
 - disas main   
 main関数を逆アセンブル
+- x/(表示する数)(メモリサイズ bhwg)(表示フォーマット six)(表示するメモリの先頭アドレス *0x08...)   
+b:BYTE(1バイト)   
+h:HALFWORD(2バイト)   
+w:WORD(4バイト)   
+g:GIANTWORD(8バイト)   
+
+s:文字列   
+i:命令   
+x:16進数
 ### よく見るかたまり
 #### strcmp
 ```txt
@@ -56,6 +65,8 @@ gdb-peda$ x /4wx $rbp-0x90
 
 gdb-peda$ x /s $rbp-0x90
 0x7fffffffdd90:	"ABCDEF"
+
+RDI: 0x7fffffffdd90 --> 0x464544434241 ('ABCDEF')
 ```
 メモリ上に格納される時、順序がこうなる。なお、文字列として読みだすときは順序が入力したときと同じに評価される。 
 
