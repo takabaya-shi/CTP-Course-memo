@@ -43,6 +43,48 @@ main関数を逆アセンブル
   rbp-0x90のアドレスのメモリ上の値を表示   
   - 例) `x /4wi main+11`,`x /4wi $rip`   
   指定したアドレスから4つ分の命令を表示
+
+### angr
+以下でInstall   
+```txt
+root@tomoki-VirtualBox:/opt# cd angr/
+root@tomoki-VirtualBox:/opt/angr# virtualenv ENV
+root@tomoki-VirtualBox:/opt/angr# . ENV/bin/activate
+(ENV) root@tomoki-VirtualBox:/opt/angr# pip3 install angr
+(ENV) root@tomoki-VirtualBox:/opt/angr# pip3 install -U protobuf
+```
+`(ENV) root@tomoki-VirtualBox:/opt/angr# python3 /home/tomoki/environment/CTF-writeup/ctf4b-2020/mask/solver-angr.py 
+`   
+でangrスクリプトを実行して、解析してフラグを表示。   
+以下、angrのテンプレート。
+
+```python
+import angr
+from claripy import *
+
+# バイナリのパスを指定
+proj = angr.Project('/home/tomoki/environment/CTF-writeup/ctf4b-2020/mask/mask')
+
+# 8*40 でフラグの最大を40バイトに指定?(これがないと動かなかった)
+sym_arg = BVS('sym_arg',8*40)
+
+# mask というファイル名を指定
+# state = proj.factory.entry_state()  でもyakisobaはいけた
+argv=['mask',sym_arg]
+state = proj.factory.entry_state(args=argv)
+sm = proj.factory.simgr(state)
+
+# find に Corrent  avoid に wrong という文字列の存在するアドレスを指定
+sm.explore(find=0x4012cf,avoid={0x4012dd,0x4011a9})
+
+if sm.found:
+    for i in sm.found:
+        # yakisobaは以下で表示できた
+        #print(i.posix.dumps(0))
+        # これじゃないとフラグが出なかった
+        print(i.solver.eval(sym_arg,cast_to=bytes).decode('utf-8','ignore'))
+
+```
 ### よく見るかたまり
 #### strcmp
 ```txt
