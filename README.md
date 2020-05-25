@@ -75,6 +75,8 @@ state = proj.factory.entry_state(args=argv)
 sm = proj.factory.simgr(state)
 
 # find に Corrent  avoid に wrong という文字列の存在するアドレスを指定
+# |      ||   0x000006d2      488d3d2e0a00.  lea rdi, str.Correct        ; 0x1107 ; "Correct!" ; const char *s
+# radare2 の 0x6d2 + 0x400000 = 0x4006d2 などとしてアドレスを計算する
 sm.explore(find=0x4012cf,avoid={0x4012dd,0x4011a9})
 
 if sm.found:
