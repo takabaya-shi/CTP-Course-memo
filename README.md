@@ -4,11 +4,11 @@ ChaetSheet for Pwn Reversing of CTF
 - file
 - strings
 - checksec.sh --file ./file
-  - Full RELRO   
+ - Full RELRO   
   プログラム起動時に共有ライブラリのアドレスをキャッシュ後にGOT領域をReadOnlyにする。GOT Overwriteできない
-  - Partial RELRO   
+ - Partial RELRO   
   GOT領域は書き込み可能。GOT(Global Offset Table)は、共有ライブラリの関数のアドレスが保存された領域
-  - No RELRO   
+ - No RELRO   
   GOT Overwrite可能。
 ## 動的解析
 - ./file (引数)   
