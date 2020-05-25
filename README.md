@@ -32,14 +32,17 @@ main関数を逆アセンブル
 - disas main   
 main関数を逆アセンブル
 - x/(表示する数)(メモリサイズ bhwg)(表示フォーマット six)(表示するメモリの先頭アドレス *0x08...)   
-b:BYTE(1バイト)   
-h:HALFWORD(2バイト)   
-w:WORD(4バイト)   
-g:GIANTWORD(8バイト)   
-
-s:文字列   
-i:命令   
-x:16進数
+  - b:BYTE(1バイト)   
+  - h:HALFWORD(2バイト)   
+  - w:WORD(4バイト)   
+  - g:GIANTWORD(8バイト)   
+  - s:文字列   
+  - i:命令   
+  - x:16進数   
+  - 例) `x /4wx $rbp-0x90`   
+  rbp-0x90のアドレスのメモリ上の値を表示   
+  - 例) `x /4wi main+11`,`x /4wi $rip`   
+  指定したアドレスから4つ分の命令を表示
 ### よく見るかたまり
 #### strcmp
 ```txt
@@ -59,6 +62,9 @@ x:16進数
 ```txt
 gdb-peda$ x /4wx $rbp-0x90
 0x7fffffffdd90:	0x44434241	0x00004645	0xf7ffe710	0x00007fff
+
+gdb-peda$ x /2gx $rbp-0x90
+0x7fffffffdd90:	0x0000716034647461	0x00007ffff7ffe710
 
 -> +0 | 44 43 42 41 |  
 -> +4 | 00 00 46 45 | 
