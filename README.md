@@ -127,6 +127,33 @@ call 直前    ->     push ebp 直前  ->  mov ebp, esp 直前  -> sub esp, 100h
 (High)
 ```
 #### 関数の終わり
+```txt
+Func1:
+push arg1
+push arg2
+call Func2
+
+Func2:
+...
+mov esp,ebp
+pop ebp
+ret
+```
+```txt
+mov esp,ebp 直前 -> pop ebp 直前        ->     ret 直前    ->     ret 直後   
+(Low)
+|         | __ esp  |         |             |         |         |         |
+|   ...   |         |   ...   |             |   ...   |         |   ...   |
+|   100h  |         |   100h  |             |   100h  |         |   100h  |
+|   ...   | __ ebp  |   ...   | __ ebp,esp  |   ...   |         |   ...   |
+|saved_ebp|         |saved_ebp|             |saved_ebp| __ esp  |saved_ebp|
+| F1_ret  |         | F1_ret  |             | F1_ret  |         | F1_ret  | __ esp
+|  arg1   |         |  arg1   |             |  arg1   |         |  arg1   |
+|  arg2   |         |  arg2   |             |  arg2   |         |  arg2   |
+|   ...   |         |   ...   |             |   ...   | __ ebp  |   ...   | __ ebp
+|         |         |         |             |         |         |         |
+(High)
+```
 #### strcmp
 ```txt
    0x55555555529e <main+293>:	lea    rax,[rbp-0x90]
