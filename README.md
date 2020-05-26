@@ -135,3 +135,21 @@ RDI: 0x7fffffffdd90 --> 0x464544434241 ('ABCDEF')
 gdb-peda$ x /gx $rbp-0x88
 0x7fffffffdd98:	0x00007ffff7ffe710
 ```
+- 文字列操作とか
+  - 0x7fff1234 -> b '\x34\x12\xff\x7f'   
+  ```python
+  #python3のみ
+  val.to_bytes(int(byte),'little')
+  ```   
+  ```python
+  # python2 のみ
+  from pwn import *
+  p32(0x7fff1234)
+  ```
+  - \x34\x12\xff\x7f -> 0x7fff1234   
+  ```python
+  # python2,3 両方
+  import struct
+  print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
+  ```
+  
