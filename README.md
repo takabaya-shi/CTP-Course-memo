@@ -99,6 +99,31 @@ if sm.found:
 - `(echo -e "\xf0\xde\xbc\x9a\x78\x56\x34\x12"; cat) | ./file`   
 - `python -c "print('A'*4 + '\x78\x56\x34\x12')" | ./file`   
 ## よく見るかたまり
+#### 関数の先頭
+```txt
+Func1:
+push arg1
+push arg2
+call Func2
+
+Func2:
+push ebp
+mov ebp, esp
+sub esp, 100h
+```
+```txt
+call 直前    ->     push ebp 直前  ->  mov ebp, esp 直前
+(Low)
+|      |            |        |         |         | __ esp
+|      |            |        | __ esp  |saved_ebp| 
+|      | __ esp     | F1_ret |         | F1_ret  |
+| arg1 |            |  arg1  |         |  arg1   |
+| arg2 |            |  arg2  |         |  arg2   |
+| ...  | __ ebp     |  ...   | __ ebp  |   ...   | __ ebp
+|      |            |        |         |         |
+(High)
+```
+#### 関数の終わり
 #### strcmp
 ```txt
    0x55555555529e <main+293>:	lea    rax,[rbp-0x90]
