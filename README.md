@@ -112,15 +112,18 @@ mov ebp, esp
 sub esp, 100h
 ```
 ```txt
-call 直前    ->     push ebp 直前  ->  mov ebp, esp 直前
+call 直前    ->     push ebp 直前  ->  mov ebp, esp 直前  -> sub esp, 100h 直前   ->  sub esp, 100h 直後
 (Low)
-|      |            |        |         |         | __ esp
-|      |            |        | __ esp  |saved_ebp| 
-|      | __ esp     | F1_ret |         | F1_ret  |
-| arg1 |            |  arg1  |         |  arg1   |
-| arg2 |            |  arg2  |         |  arg2   |
-| ...  | __ ebp     |  ...   | __ ebp  |   ...   | __ ebp
-|      |            |        |         |         |
+|      |            |        |         |         |          |         |              |         | __ esp 
+|      |            |        |         |         |          |         |              |   ...   | 
+|      |            |        |         |         |          |         |              |   100h  |
+|      |            |        |         |         | __ esp   |         | __ esp,ebp   |   ...   | __ ebp
+|      |            |        | __ esp  |saved_ebp|          |saved_ebp|              |saved_ebp|
+|      | __ esp     | F1_ret |         | F1_ret  |          | F1_ret  |              | F1_ret  |
+| arg1 |            |  arg1  |         |  arg1   |          |  arg1   |              |  arg1   | 
+| arg2 |            |  arg2  |         |  arg2   |          |  arg2   |              |  arg2   |
+| ...  | __ ebp     |  ...   | __ ebp  |   ...   | __ ebp   |   ...   |              |   ...   |
+|      |            |        |         |         |          |         |              |         |
 (High)
 ```
 #### 関数の終わり
