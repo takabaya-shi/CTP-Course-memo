@@ -98,6 +98,33 @@ if sm.found:
 - `socat TCP-LISTEN:4000,reuseaddr,fork EXEC:./file 2> /dev/null &`   
 - `(echo -e "\xf0\xde\xbc\x9a\x78\x56\x34\x12"; cat) | ./file`   
 - `python -c "print('A'*4 + '\x78\x56\x34\x12')" | ./file`   
+### スタックアラインメント
+x86-64の場合、関数を呼び出すときには、`RSP`は必ず16の倍数のアドレスにいなければならない。   
+リターンアドレスを書き換えて別の関数を呼び出す際に考慮する必要がある。   
+もしそうでない場合、`ret`を入れたり、`push rbp`を無視して16の倍数にそろえる。 
+以下は`ret`命令のアドレス`0x4007f0`をFunc1_ret領域に上書きした場合の動作。   
+```txt
+  4007f0:	c3                   	retq   
+overW_ret = 0x4007f0
+func_addr = win関数のアドレス
+
+  ret 直前       ->       ret 直後           ->          ret gadget後
+RIP = ret命令のアドレス  RIP = 0x4007f0                 RIP = win関数のアドレス
+(Low)
+|         |             |         |                    |         |
+|   ...   |             |   ...   |                    |   ...   |
+|   100h  |             |   100h  |                    |   100h  |
+|   ...   |             |   ...   |                    |   ...   |
+|saved_ebp| __ esp      |saved_ebp|                    |saved_ebp|
+|overW_ret| (書き換えた) |overW_ret| (書き換えた) __ esp |overW_ret| (書き換えた)
+|func_addr| (書き換えた) |func_addr| (書き換えた)        |func_addr| (書き換えた) __ esp
+|  arg2   |             |  arg2   |                    |  arg2   |
+|   ...   | __ ebp      |   ...   | __ ebp             |   ...   | __ ebp
+|         |             |         |                    |         |
+(High)
+```
+### gadget
+
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
