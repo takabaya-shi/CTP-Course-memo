@@ -278,3 +278,16 @@ gdb-peda$ x /gx $rbp-0x88
   `usermod -s /usr/sbin/nologin www-data`   
   でwww-dataがログインできないようにする。   
   これで、80portにapacheが、index.htmlだけを持っている状態でInstallされた。   
+  https://netlog.jpn.org/r271-635/2009/06/apache_ssl_on_ubuntu_81.html   
+  
+  ### install dovecot
+  `apt-get install dovecot-imapd dovecot-pop3d`   
+  でInstallすると、110,143,993,995で立ち上がる。   
+  `/etc/dovecot/dovecot.conf`を以下のように編集すると、`user test`,`pass test`でログインできた。   
+  ```txt
+  disable_plaintext_auth = no (コメントアウトを外す)
+  
+  mail_location = maildir:~/Maildir (コメントアウトを外す)
+  
+  # mail_access_groups = (コメントアウトのまま)
+  ```
