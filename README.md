@@ -272,4 +272,9 @@ gdb-peda$ x /gx $rbp-0x88
   https://qiita.com/ytyng/items/76784390a538bbb5117e   
   そのあと、`apt-get install openssh-server`でsshがinstallされて、sshdが起動した状態になった。
   
-  
+  ### install apache2
+  `apt-get install apache2`   
+  `apt-get install php5`   
+  `usermod -s /usr/sbin/nologin www-data`   
+  でwww-dataがログインできないようにする。   
+  これで、80portにapacheが、index.htmlだけを持っている状態でInstallされた。   
