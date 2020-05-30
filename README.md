@@ -291,3 +291,5 @@ gdb-peda$ x /gx $rbp-0x88
   
   # mail_access_groups = (コメントアウトのまま)
   ```
+  /home/test/Maildirが作成された。   
+  `/home/test/Maildir/new`以下のファイルをログイン後に参照できる。
