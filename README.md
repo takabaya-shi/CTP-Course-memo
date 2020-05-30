@@ -248,4 +248,28 @@ gdb-peda$ x /gx $rbp-0x88
   import struct
   print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
   ```
+  # vulnhubメモ
+  ## 古いバージョンのLinuxのインストール
+  https://soft.lafibre.info/   
+  http://old-releases.ubuntu.com/releases/14.04.0/   
+  からスカスカのubuntuをInstall。デスクトップは重い    
+  .isoを使用して、VMを作成する。
+  
+  ### virtualbox の設定
+  [export]すると、スナップショットも反映される。
+  exportした.ovaを7zで圧縮(95%だからほぼされないけど)すると230MBくらいだった。   
+  [新規]で[新しいハードディスクを作成]で、2.5GBくらい与える(1GだとInstall時にエラー)。   
+  それで、[設定]で[光学ドライブ]の新規から、.isoファイルを選択して、[起動]して指示に従う。   
+  10.04だけうまく行った。   
+  
+  ### install openssh
+  `apt-get install openssh-server`だと、エラーで完了しない。   
+  `apt-get update`しても、`faild to fetch`のerrorが大量に発生する。   
+  rootになって、`apt-get update`する必要があるが、古いバージョンはパッケージの場所が変わっているため、`/etc/apt/sources.list`を書き換える必要がある。   
+  `archive.ubuntu.com` -> `old-releases.ubuntu.com`   
+  `us.archive.ubuntu.com` -> `old-releases.ubuntu.com`   
+  `security.ubuntu.com` -> `old-releases.ubuntu.com`   
+  https://qiita.com/ytyng/items/76784390a538bbb5117e   
+  そのあと、`apt-get install openssh-server`でsshがinstallされて、sshdが起動した状態になった。
+  
   
