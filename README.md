@@ -248,6 +248,12 @@ gdb-peda$ x /gx $rbp-0x88
   import struct
   print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
   ```
+  
+  # todo
+  free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
+  gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
+  heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
+  
   # vulnhubメモ
   ## 古いバージョンのLinuxのインストール
   https://soft.lafibre.info/   
