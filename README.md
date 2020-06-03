@@ -555,7 +555,9 @@ gdb-peda$ x /gx $rbp-0x88
   free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
   gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
   heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
-  
+  libc_baseとかlibc.main_arenaとかの計算方法が全然わかってない   
+  libc_baseよりmain_arenaの方が高いアドレスにある？   
+  `p system`,`x/24xw &main_arena`   
   # vulnhubメモ
   ## 古いバージョンのLinuxのインストール
   https://soft.lafibre.info/   
