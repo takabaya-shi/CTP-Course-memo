@@ -28,8 +28,6 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-- [example](#example)
-  - [description](#description)
 
 # Pwn-Rev-CheatSheet
 ChaetSheet for Pwn Reversing of CTF
