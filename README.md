@@ -45,16 +45,16 @@ main関数を逆アセンブル
   指定したアドレスから4つ分の命令を表示
 
 #### gdb-peda
-- `gdb-peda ./file`
+- `gdb-peda ./file`   
 
 #### gdb-pwndbg
-- `gdb-pendbg ./file`
+- `gdb-pendbg ./file`   
 https://github.com/pwndbg/pwndbg/blob/dev/FEATURES.md   
 #### gdb-Pwndbg
-- `gdb-Pwndbg ./file`
+- `gdb-Pwndbg ./file`   
 https://github.com/scwuaptx/Pwngdb   
 #### gdb-gef
-- `gdb-gef ./file`
+- `gdb-gef ./file`   
 https://github.com/hugsy/gef   
 
 ### Ghidra
