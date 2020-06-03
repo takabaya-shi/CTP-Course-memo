@@ -28,8 +28,7 @@ ChaetSheet for Pwn Reversing of CTF
 - pdf @main   
 main関数を逆アセンブル
 
-### gdb-peda
-- gdb -q ./file
+### gdb
 - disas main   
 main関数を逆アセンブル
 - x/(表示する数)(メモリサイズ bhwg)(表示フォーマット six)(表示するメモリの先頭アドレス *0x08...)   
@@ -44,6 +43,19 @@ main関数を逆アセンブル
   rbp-0x90のアドレスのメモリ上の値を表示   
   - 例) `x /4wi main+11`,`x /4wi $rip`   
   指定したアドレスから4つ分の命令を表示
+
+#### gdb-peda
+- `gdb-peda ./file`
+
+#### gdb-pwndbg
+- `gdb-pendbg ./file`
+https://github.com/pwndbg/pwndbg/blob/dev/FEATURES.md   
+#### gdb-Pwndbg
+- `gdb-Pwndbg ./file`
+https://github.com/scwuaptx/Pwngdb   
+#### gdb-gef
+- `gdb-gef ./file`
+https://github.com/hugsy/gef   
 
 ### Ghidra
 - `./ghirdaRun`   
