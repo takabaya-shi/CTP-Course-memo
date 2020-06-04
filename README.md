@@ -492,6 +492,36 @@ mallocで返されたアドレスの値を表示する
 > 2
 Content: '`ruUUU'    <- show関数でHeap領域のアドレス(0x0000555555757260)がリークできた！　
 Remove? [y/n] n         showできるのはmallocが返したアドレス(0x108に対応するtcache[0x110]=0x555555757380)の値
+```
+
+#### off-by-one-errorとHeap leak+tcacheを7つリンク
+
+```txt
+[1] 0x100でmalloc,free (実際は248)
+[2] 0x110でmalloc,free (実際は264)
+[3] 0x120でmalloc,free (実際は280)
+[4] 0x100で再度malloc,off-by-one-error,free
+[5] 0x110で再度malloc,off-by-one-error,free
+[6] 0x120で再度malloc,off-by-one-error,free
+    この時、show関数で直前のmallocが返したアドレス470の値(360)を[6]のfree後に読むことでHeapleakできる！
+
+[1],[2],[3]後                  [4],[5],[6]後
+
+|   heap   heap   |          |   heap   heap   | 
+|                 |          |                 |
+|          0x100  |          |          0x100  |
+|      0          | <- 260   | AAAAAA   AAAAA  |
+|                 |          | AAAAAA   AAAAA  |
+|                 |          |    ~         ~  |
+|                 |          | AAAAAA   AAAAA  |
+|          0x110  |          |          0x100  | <- [4]のoff-by-one-error
+|      1          | <- 360   |  260     BBBBB  | <- [5]のfreeで、[4]でtcache[0x100]にfreeされた260が上書き
+|                 |          | BBBBBB   BBBBB  |
+|                 |          |    ~       ~    |
+|                 |          | BBBBBB   BBBBB  |
+|          0x120  |          | BBBBBB   0x100  | <- [5]のoff-by-one-error
+|      2          | <- 470   |  360            | <- [6]のfreeで、[5]でtcache[0x100]にfreeされた360が上書き
+|                 |          | CCCCCC   CCCCC  | <- [6]のoff-by-one-errorでこうなる。ここがmallocが返したアドレス
 
 ```
 #### 覚えておきたい
