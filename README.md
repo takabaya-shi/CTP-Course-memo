@@ -31,9 +31,6 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-
-# Pwn-Rev-CheatSheet
-ChaetSheet for Pwn Reversing of CTF
 ## 表層解析
 - file
 - strings
@@ -524,6 +521,41 @@ Remove? [y/n] n         showできるのはmallocが返したアドレス(0x108�
 |      2          | <- 470   |  360            | <- [6]のfreeで、[5]でtcache[0x100]にfreeされた360が上書き
 |                 |          | CCCCCC   CCCCC  | <- [6]のoff-by-one-errorでこうなる。ここがmallocが返したアドレス
 
+```
+#### Heap アドレス関係
+```txt
+libc_base        = addr_libc_mainarena - offset_libc_mainarena
+addr_libc_system    = libc_base + offset_libc_system
+addr_libc_str_sh (/bin/sh)   = libc_base + offset_libc_str_sh
+addr_libc_free_hook    = libc_base + offset_libc_free_hook
+
+(low)
+|               |
+|               |
+|         0x251 | <- heap_base (不変)  0x555555757000
+|               |
+|               |
+|               |
+|               |
+|         0x120 | <- 最後のチャンク 0x555555757460
+|  AAAAA  AAAAA |
+|   ~       ~   |
+|  AAAAA  AAAAA |
+|  AAAAA  20a00 | <- heap_top 0x555555757580
+|               |    可変で下にどんどん伸びていく
+|               |
+|               |
+|               |
+|               | <- libc_base   0x7ffff79e4000 ??
+|               |
+|               |
+|               | <- libc_system 0x7ffff7a33440
+|               |
+|               |
+|               | <- main_arena  0x7ffff7dcfc40
+|               |
+|               |
+(high)
 ```
 #### 覚えておきたい
 - アドレス   
