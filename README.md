@@ -534,7 +534,7 @@ addr_libc_free_hook    = libc_base + offset_libc_free_hook
 |               |
 |         0x251 | <- heap_base (不変)  0x555555757000
 |               |
-|               |
+|0x555555757460 | <- tcache[0x120]の実体は0x250のchunkのどこかに存在
 |               |
 |               |
 |         0x120 | <- 最後のチャンク 0x555555757460
@@ -553,6 +553,10 @@ addr_libc_free_hook    = libc_base + offset_libc_free_hook
 |               |
 |               |
 |               | <- main_arena  0x7ffff7dcfc40
+|               |
+|               | <- fastbinsの実体 (0x80bytes以下)
+|               |
+|               | <- bins(unsortedbins)の実体
 |               |
 |               |
 (high)
