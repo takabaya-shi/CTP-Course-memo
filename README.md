@@ -637,8 +637,10 @@ forward consolidateでエラーにならないように0x21の偽のチャンク
 0x555555757bb0:	0x4141414141414141	0x4141414141414141
 0x555555757bc0:	0x4141414141414141	0x0000000000000021 <- forward consolidateのため
 0x555555757bd0:	0x0000000000000000	0x0000000000000000
-0x555555757be0:	0x0000000000000000	0x0000000000000021 <- forward consolidateのため
+0x555555757be0:	0x0000000000000000	0x0000000000000021 <- forward consolidateが発生しないように！
 
+        freeするchunkの次の次のchunk(0x555555757be0)のPREV_INUSEが0のときforward consolidateが発生し、
+        次のchunk(0x555555757bc0)に対してunlink()の処理が入る
 
 
 -------------------------------------------------------------------------
@@ -919,16 +921,30 @@ gdb-peda$ x /gx $rbp-0x88
   import struct
   print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
   ```
+  ## 参考文献
+  ### Heap
+  http://kyuri.hatenablog.jp/entry/2017/04/21/152626   
+  マジで神！free,malloc,unlink時の動作がコードでかいてある。   
   
-  # todo
+  https://www.valinux.co.jp/technologylibrary/document/linux/malloc0001/   
+  Heapの動作が日本語でわかりやすく書いてある。   
+  
+  https://ctf-wiki.github.io/ctf-wiki/pwn/linux/glibc-heap/implementation/tcache/   
+  tcacheのWiki    
+  
+  https://raintrees.net/projects/a-painter-and-a-black-cat/wiki/CTF_Pwn    
+  Pwnの全体像がわかる。   
+  
+  
+  ## todo
   free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
   gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
   heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
   libc_baseとかlibc.main_arenaとかの計算方法が全然わかってない   
   libc_baseよりmain_arenaの方が高いアドレスにある？   
   `p system`,`x/24xw &main_arena`   
-  # vulnhubメモ
-  ## 古いバージョンのLinuxのインストール
+  ## vulnhubメモ
+  ### 古いバージョンのLinuxのインストール
   https://soft.lafibre.info/   
   http://old-releases.ubuntu.com/releases/14.04.0/   
   からスカスカのubuntuをInstall。デスクトップは重い    
