@@ -251,6 +251,7 @@ No RELRO, Partial RELEROの場合に有効。
 ### format string bug
 以下のようにフォーマットが指定されていない場合に有効。   
 また、ret2pltなどでprintf関数を呼び出した際にも有効！！   
+`%p`の場所は、x64の場合は7まではrsi,rdx,..のレジスタの内容で、8以降rspになるらしいので、`sub rsp YY`と`rbp-0xXX`を対応させて逆算するらしい。   
 ```txt
 printf(buf)
 ```
