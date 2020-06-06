@@ -1028,11 +1028,13 @@ addr_libc_free_hook    = libc_base + offset_libc_free_hook
 |               |
 |               |
 |               |
-|               | <- libc_base   0x7ffff79e4000 ??
+|               | <- libc_base   0x7ffff79e4000 
 |               |
+|               | <- libc_start_main 0x7ffff7a05ab0
 |               |
 |               | <- libc_system 0x7ffff7a33440
 |               |
+|               | <- "/bin/sh"のポインタ 0x7ffff7b97e9a
 |               |
 |               | <- main_arena  0x7ffff7dcfc40
 |               |
@@ -1040,6 +1042,9 @@ addr_libc_free_hook    = libc_base + offset_libc_free_hook
 |               |
 |               | <- bins(unsortedbins)の実体
 |               |
+|               |
+|               |
+|               | <- stack 0x7fffffffdea0
 |               |
 (high)
 ```
@@ -1125,6 +1130,25 @@ p64(elf.plt["printf"]) #\x90\x05@\x00\x00\x00\x00\x00
 hex(elf.plt["printf"]) #0x400590
 libc.symbols["__libc_start_main"]
 
+```
+##### Cの関数
+```txt
+---------------------------------------------------------------------
+setbuf
+
+#include <stdio.h>
+void setbuf(FILE *, char *buffer);
+
+buffer 引数が NULL の場合、stream はバッファーに入れられません。
+そうでない場合、buffer は、長さが BUFSIZ の文字配列を指している必要があります
+
+int init(){
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+
+    return 0;
+}
+バッファを経由するかどうか？NULLの場合はバッファを経由しない？
 ```
 ## 参考文献
 ### Heap
