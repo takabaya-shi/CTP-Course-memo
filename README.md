@@ -86,14 +86,28 @@ main関数を逆アセンブル
   指定したアドレスから4つ分の命令を表示
 - アドレス確認   
    - bt   
-   `__libc_start_main`のアドレスを確認
+   `__libc_start_main`のアドレスを確認 (正確には__libc_stat_main+231など)
    - p system   
    `__libc_system`のアドレスを確認   
    - p &main_arena   
    main_arenaのアドレスを確認   
+   - vmmap   
+   ```txt
+   0x00602000         0x00623000         rw-p	[heap]
+   0x00007ffff79e4000 0x00007ffff7bcb000 r-xp	/lib/x86_64-linux-gnu/libc-2.27.so
+   ```
+   libc_baseが`0x00007ffff79e4000`とわかる   
 
 #### gdb-peda 
 - `gdb-peda ./file`   
+- `pdisas main`
+色付きで逆アセンブルして見やすい。   
+- `nextcall`   
+次のcallまで処理を進めてくれる   
+- `tel $rbp-8*4 5`   
+わかりやすくメモリの状態を表示してくれる   
+- `vmmap`   
+メモリ内の大体を表示   
 
 #### gdb-pwndbg
 - `gdb-pendbg ./file`   
@@ -219,6 +233,41 @@ No RELRO, Partial RELEROの場合に有効。
 000000601048  000900000007 R_X86_64_JUMP_SLO 0000000000000000 exit@GLIBC_2.2.5 + 0
 ```
 ### format string bug
+以下のようにフォーマットが指定されていない場合に有効。   
+また、ret2pltなどでprintf関数を呼び出した際にも有効！！   
+```txt
+printf(buf)
+```
+- `%p`   
+スタック上のデータをvoid\*型として16進数で表示   
+- `%n$p`   
+スタック上の何番目のデータをvoid\*型として16進数で表示するかを指定することができる   
+- `%x`   
+スタック上にある値をそのまま出力する   
+- `%s`   
+スタック上にある値をポインタとして読み込んで表示   
+- `%n`   
+printfが呼ばれてから%nを見つけるまでに出力された文字数を引数のポインタに書き込む   
+- `%hn`   
+1バイトだけ書き込む   
+
+### libc leak
+#### stack上のbacktraceを利用
+stack上にはバックトレースという、エラー時にどの関数を呼んだのかをわかるようにするための情報が保存される。   
+これをret2pltなどのprintfのFSBでleakする。   
+```txt
+gdb-peda$ bt
+#0  0x0000000000400818 in main ()
+#1  0x00007ffff7a05b97 in __libc_start_main (main=0x40079e <main>, argc=0x1, 
+    argv=0x7fffffffdf88, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, 
+    stack_end=0x7fffffffdf78) at ../csu/libc-start.c:310
+#2  0x000000000040061a in _start ()
+gdb-peda$ tel 0x00007ffff7a05b97 1
+0000| 0x7ffff7a05b97 (<__libc_start_main+231>:	mov    edi,eax)
+
+libc_start_main = 0x7ffff7a05b97 -231
+libc_base = libc_start_main - offset_libc_start
+```
 
 ### off-by-one error
 read() で指定文字列を上限に読み込んだあと、ヌルバイト埋めが 1byte だけ溢れる脆弱性。   
