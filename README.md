@@ -77,13 +77,17 @@
 標準ライブラリ関数をトレースする
 ## 静的解析
 ### radare2
-- radare2 ./binary
-- afl   
+- `radare2 ./binary`
+- `afl`   
 関数の一覧を表示
-- pdf @main   
+- `pdf @main`   
 main関数を逆アセンブル   
-- pdd @ main   
+- `pdd @ main`   
 main関数をデコンパイル   
+- `s main`   
+main関数に移動   
+- `VV`   
+ヴィジュアルモードでわかりやすく表示してくれる。神。hjklで移動できる   
 
 ### gdb
 - disas main   
@@ -942,6 +946,25 @@ gdb-peda$ x/32gx 0x555555757a60
 
 
 #### 覚えておきたい
+##### 方針
+すぐに落ちるようなプログラムは`exit`などの関数のGOTをmainや_startに書き換えてループさせる必要がある。   
+そのあとに、putsやprintfを呼び出してlibc leakさせる(systemを呼び出したいので)。   
+その際、   
+- setbufなどの別の関数のGOTをprintfのGOTに書き換えて呼び出す   
+- setbufなどの別の関数のGOTをprintfのpltに書き換えて呼び出す   
+- printf@plt(ランダム化されない)を
+##### 起動時の動作
+```txt
+_start -> __libc_start_main -> main という流れ
+mainでなくても_startでもループできる
+
+gdb-peda$ bt
+#0  0x00000000004007fe in main ()
+#1  0x00007ffff7a05b97 in __libc_start_main (main=0x4007fa <main>, argc=0x1, 
+    argv=0x7fffffffdf88, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, 
+    stack_end=0x7fffffffdf78) at ../csu/libc-start.c:310
+#2  0x000000000040070a in _start ()
+```
 ##### アドレス関係
 ```txt
 libc_base        = addr_libc_mainarena - offset_libc_mainarena
