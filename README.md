@@ -1008,34 +1008,39 @@ gdb-peda$ x /gx $rbp-0x88
 ```
 ##### pwntools
 ###### 文字列操作
-  - 0x7fff1234 -> b '\x34\x12\xff\x7f'   
-  ```python
-  #python3のみ
-  # 文字列と結合しようとすると、
-  # TypeError: must be str, not bytes
-  val.to_bytes(int(byte),'little')
-  ```   
-  ```python
-  # python2 のみ
-  from pwn import *
-  r = remote("localhost", 4444)
-  p32(0x7fff1234) # '4\x12\xff\x7f'
-  p64(0x7fff1234) # '4\x12\xff\x7f\x00\x00\x00\x00'
-  payload  = "A" * 0x28 + p64(0x7fff1234)
-  r.send(payload)
-  ```
-  - \x34\x12\xff\x7f -> 0x7fff1234   
-  ```python
-  # python2 のみ
-  from pwn import *
-  hex(unpack('\xef\xbe\xad\xde')) # 0xdeadbeef
-  hex(u32('\xef\xbe\xad\xde'))  # 0xdeadbeef
-  hex(u64('\xef\xbe\xad\xde\x41\x42\x43\x45'))  # 0x45434241deadbeef
+- 0x7fff1234 -> b '\x34\x12\xff\x7f'   
+```python
+#python3のみ
+# 文字列と結合しようとすると、
+# TypeError: must be str, not bytes
+val.to_bytes(int(byte),'little')
+```   
+```python
+# python2 のみ
+from pwn import *
+r = remote("localhost", 4444)
+p32(0x7fff1234) # '4\x12\xff\x7f'
+p64(0x7fff1234) # '4\x12\xff\x7f\x00\x00\x00\x00'
+payload  = "A" * 0x28 + p64(0x7fff1234)
+r.send(payload)
+```
+- \x34\x12\xff\x7f -> 0x7fff1234   
+```python
+# python2 のみ
+from pwn import *
+hex(unpack('\xef\xbe\xad\xde')) # 0xdeadbeef
+hex(u32('\xef\xbe\xad\xde'))  # 0xdeadbeef
+hex(u64('\xef\xbe\xad\xde\x41\x42\x43\x45'))  # 0x45434241deadbeef
   
-  # python2,3 両方
-  import struct
-  print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
-  ```
+# python2,3 両方
+import struct
+print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
+```
+- 0x7fffffff12345678(str) -> 0x7fffffff12345678(hex)
+```python
+lib_main_start_str = "0x7fffffff12345678"
+hex(int(str(lib_main_start_str), 16))      # 0x7fffffff12345678
+```
 ###### 通信関係
 ```txt
 from pwn import *
@@ -1043,6 +1048,8 @@ conn = remote("localhost", 5000)
 
 conn.sendafter("index: ", "-2")
 libc_start_main = conn.recvline() #改行まで読み込み
+
+conn.interactive()
 ```
 ###### ELF解析
 ```txt
@@ -1054,6 +1061,8 @@ libc = ELF("./libc-2.27.so")
 str(elf.got["malloc"]) #6295608
 p64(elf.plt["printf"]) #\x90\x05@\x00\x00\x00\x00\x00
 hex(elf.plt["printf"]) #0x400590
+libc.symbols["__libc_start_main"]
+
 ```
 ## 参考文献
 ### Heap
