@@ -64,7 +64,9 @@
 - afl   
 関数の一覧を表示
 - pdf @main   
-main関数を逆アセンブル
+main関数を逆アセンブル   
+- pdd @ main   
+main関数をデコンパイル   
 
 ### gdb
 - disas main   
@@ -81,15 +83,26 @@ main関数を逆アセンブル
   rbp-0x90のアドレスのメモリ上の値を表示   
   - 例) `x /4wi main+11`,`x /4wi $rip`   
   指定したアドレスから4つ分の命令を表示
+- アドレス確認   
+   - bt   
+   `__libc_start_main`のアドレスを確認
+   - p system   
+   `__libc_system`のアドレスを確認   
+   - p &main_arena   
+   main_arenaのアドレスを確認   
 
-#### gdb-peda
+#### gdb-peda 
 - `gdb-peda ./file`   
 
 #### gdb-pwndbg
 - `gdb-pendbg ./file`   
+- `heap`   
+- `bins`   
+- `arena`   
 https://github.com/pwndbg/pwndbg/blob/dev/FEATURES.md   
 #### gdb-Pwndbg
 - `gdb-Pwndbg ./file`   
+- `heapinfo`   
 https://github.com/scwuaptx/Pwngdb   
 #### gdb-gef
 - `gdb-gef ./file`   
@@ -190,6 +203,7 @@ ASLRによって動的リンクされたライブラリはランダム化され�
 ### GOT Overwrite
 動的リンクされた関数などのアドレステーブルのGOT領域に書いてある関数のアドレスを上書き。   
 .pltはGOT領域のアドレステーブルを参照して関数のアドレスを取得する。   
+No RELRO, Partial RELEROの場合に有効。   
 `readelf -r file`   
 で調べる。書かれている関数のアドレスは隣接している。   
 ```txt
@@ -203,6 +217,8 @@ ASLRによって動的リンクされたライブラリはランダム化され�
 000000601040  000800000007 R_X86_64_JUMP_SLO 0000000000000000 atol@GLIBC_2.2.5 + 0
 000000601048  000900000007 R_X86_64_JUMP_SLO 0000000000000000 exit@GLIBC_2.2.5 + 0
 ```
+### format string bug
+
 ### off-by-one error
 read() で指定文字列を上限に読み込んだあと、ヌルバイト埋めが 1byte だけ溢れる脆弱性。   
 Heap問でチャンクサイズを書き換えるのに有効。頻出？   
