@@ -925,9 +925,12 @@ gdb-peda$ x/32gx 0x555555757a60
 
 ```
 
-#### Heap アドレス関係
+
+#### 覚えておきたい
+##### アドレス関係
 ```txt
 libc_base        = addr_libc_mainarena - offset_libc_mainarena
+libc_base        = libc_start_main - offset_libc_start_main
 addr_libc_system    = libc_base + offset_libc_system
 addr_libc_str_sh (/bin/sh)   = libc_base + offset_libc_str_sh
 addr_libc_free_hook    = libc_base + offset_libc_free_hook
@@ -964,10 +967,8 @@ addr_libc_free_hook    = libc_base + offset_libc_free_hook
 |               |
 (high)
 ```
-#### 覚えておきたい
-- アドレス   
 `0x7fffff...`はスタックのアドレス。`0x555555...`はスタックのアドレス、であることが多い(?)。
-- リトルエンディアン   
+##### リトルエンディアン
 `ABCDEF`という入力をした場合、   
 ```txt
 gdb-peda$ x /4wx $rbp-0x90
@@ -991,7 +992,8 @@ RDI: 0x7fffffffdd90 --> 0x464544434241 ('ABCDEF')
 gdb-peda$ x /gx $rbp-0x88
 0x7fffffffdd98:	0x00007ffff7ffe710
 ```
-- 文字列操作とか
+##### pwntools
+###### 文字列操作
   - 0x7fff1234 -> b '\x34\x12\xff\x7f'   
   ```python
   #python3のみ
@@ -1020,41 +1022,60 @@ gdb-peda$ x /gx $rbp-0x88
   import struct
   print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
   ```
-  ## 参考文献
-  ### Heap
-  http://kyuri.hatenablog.jp/entry/2017/04/21/152626   
-  マジで神！free,malloc,unlink時の動作がコードでかいてある。   
+###### 通信関係
+```txt
+from pwn import *
+conn = remote("localhost", 5000)
+
+conn.sendafter("index: ", "-2")
+libc_start_main = conn.recvline() #改行まで読み込み
+```
+###### ELF解析
+```txt
+from pwn import *
+context(os = "linux", arch = "amd64")
+elf = ELF("./chall")
+libc = ELF("./libc-2.27.so")
+
+str(elf.got["malloc"]) #6295608
+p64(elf.plt["printf"]) #\x90\x05@\x00\x00\x00\x00\x00
+hex(elf.plt["printf"]) #0x400590
+```
+## 参考文献
+### Heap
+http://kyuri.hatenablog.jp/entry/2017/04/21/152626   
+マジで神！free,malloc,unlink時の動作がコードでかいてある。   
   
-  https://www.valinux.co.jp/technologylibrary/document/linux/malloc0001/   
-  Heapの動作が日本語でわかりやすく書いてある。   
+https://www.valinux.co.jp/technologylibrary/document/linux/malloc0001/   
+Heapの動作が日本語でわかりやすく書いてある。   
   
-  https://ctf-wiki.github.io/ctf-wiki/pwn/linux/glibc-heap/implementation/tcache/   
-  tcacheのWiki    
+https://ctf-wiki.github.io/ctf-wiki/pwn/linux/glibc-heap/implementation/tcache/   
+tcacheのWiki    
   
-  https://raintrees.net/projects/a-painter-and-a-black-cat/wiki/CTF_Pwn    
-  Pwnの全体像がわかる。   
+https://raintrees.net/projects/a-painter-and-a-black-cat/wiki/CTF_Pwn    
+Pwnの全体像がわかる。   
   
   
-  ## todo
-  free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
-  gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
-  heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
-  libc_baseとかlibc.main_arenaとかの計算方法が全然わかってない   
-  libc_baseよりmain_arenaの方が高いアドレスにある？   
-  `p system`,`x/24xw &main_arena`   
-  ## vulnhubメモ
-  ### 古いバージョンのLinuxのインストール
-  https://soft.lafibre.info/   
-  http://old-releases.ubuntu.com/releases/14.04.0/   
-  からスカスカのubuntuをInstall。デスクトップは重い    
-  .isoを使用して、VMを作成する。
-  
-  ### virtualbox の設定
-  [export]すると、スナップショットも反映される。
-  exportした.ovaを7zで圧縮(95%だからほぼされないけど)すると230MBくらいだった。   
-  [新規]で[新しいハードディスクを作成]で、2.5GBくらい与える(1GだとInstall時にエラー)。   
-  それで、[設定]で[光学ドライブ]の新規から、.isoファイルを選択して、[起動]して指示に従う。   
-  10.04だけうまく行った。   
+## todo
+free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
+gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
+heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
+libc_baseとかlibc.main_arenaとかの計算方法が全然わかってない   
+libc_baseよりmain_arenaの方が高いアドレスにある？   
+
+## vulnhubメモ
+### 古いバージョンのLinuxのインストール
+https://soft.lafibre.info/   
+http://old-releases.ubuntu.com/releases/14.04.0/   
+からスカスカのubuntuをInstall。デスクトップは重い    
+.isoを使用して、VMを作成する。
+
+### virtualbox の設定
+[export]すると、スナップショットも反映される。
+exportした.ovaを7zで圧縮(95%だからほぼされないけど)すると230MBくらいだった。   
+[新規]で[新しいハードディスクを作成]で、2.5GBくらい与える(1GだとInstall時にエラー)。   
+それで、[設定]で[光学ドライブ]の新規から、.isoファイルを選択して、[起動]して指示に従う。   
+10.04だけうまく行った。   
   
   ### install openssh
   `apt-get install openssh-server`だと、エラーで完了しない。   
