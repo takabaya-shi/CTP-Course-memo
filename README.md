@@ -1159,6 +1159,10 @@ conn.sendlineafter("ID: ", "admin")
 libc_start_main = conn.recvline() #改行まで読み込み
 conn.recvuntil('\n')
 
+printf = conn.recv(6)      # 6を指定しないと余計なものまで読み込んでしまう
+print("recv:" + printf)                  # recv:\x80\x8e\xa4��
+libc_printf = u64(printf.ljust(8,b'\0')) # libc_printf:0x7ffff7a48e80
+
 conn.interactive()
 ```
 ###### ELF解析
@@ -1171,8 +1175,11 @@ libc = ELF("./libc-2.27.so")
 str(elf.got["malloc"]) #6295608
 p64(elf.plt["printf"]) #\x90\x05@\x00\x00\x00\x00\x00
 hex(elf.plt["printf"]) #0x400590
-libc.symbols["__libc_start_main"]
+libc.symbols["__libc_start_main"] #137904
+offset_libc_printf = libc.symbols["printf"] #137904
 
+
+info('addr_libc_base    = 0x{:08x}'.format(libc_base))
 ```
 ##### alarmのbypass
 `hexedit`でバイナリを書き換える。   
