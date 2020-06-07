@@ -152,6 +152,8 @@ main関数を逆アセンブル
 わかりやすくメモリの状態を表示してくれる   
 - `vmmap`   
 メモリ内の大体を表示   
+- `pattc 200`      
+- `patto AAAJ`   
 
 #### gdb-pwndbg
 - `gdb-pendbg ./file`   
