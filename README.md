@@ -426,7 +426,17 @@ mov esp,ebp 直前 -> pop ebp 直前        ->     ret 直前    ->     ret 直�
    0x5555555552b6 <main+317>:	jne    0x5555555552dd <main+356>
 ```
 `RSI`レジスタと`RDI`レジスタに比較したい文字列を代入して、一致しているかを見る。一致していなければ、JNEで不一致の処理に入る。
+#### 変数
 
+```txt
+│           ; var char *s1 @ rbp-0x30
+
+│           0x00400997      488d45d0       lea rax, [s1]         <- rsp-0x30のアドレスをraxに代入。getsの内容がここに書き込まれる
+│           0x0040099b      4889c7         mov rdi, rax                ; char *s
+│           0x0040099e      e88dfdffff     call sym.imp.gets           ; char *gets(char *s)
+
+│      ││   0x004009ee      c745fc010000.  mov dword [var_4h], 1 <- rbp-0x4にある変数に1を代入
+```
 #### tcacheの通常時の動作
 [1] 0x10サイズをmalloc(content)して、`AAAAAAAABBBBBBBB`を書き込む。   
 [2] 0x20サイズをmalloc(content)して、`DDDDDDDDEEEEEEEEFFFFFFFFGGGGGGGG`を書き込む。   
