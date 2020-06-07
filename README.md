@@ -476,6 +476,35 @@ mov esp,ebp 直前 -> pop ebp 直前        ->     ret 直前    ->     ret 直�
 |         |         |         |             |         |         |         |
 (High)
 ```
+#### main関数の状態
+
+```txt
+main関数は　<__libc_start_main+231> から呼ばれる。
+saved_rbpは　0x400970 (<__libc_csu_init>)で以外と小さい
+rbpは<__libc_csu_init>を指しており、その下にリターンアドレスがある
+
+gdb-peda$ tel $rbp-0x30 20
+0000| 0x7fffffffde60 --> 0x0 
+0008| 0x7fffffffde68 --> 0x0 
+0016| 0x7fffffffde70 --> 0x0 
+0024| 0x7fffffffde78 --> 0x0 
+0032| 0x7fffffffde80 --> 0x7fffffffdf70 --> 0x1 
+0040| 0x7fffffffde88 --> 0x293133f802e74a00 
+0048| 0x7fffffffde90 --> 0x400970 (<__libc_csu_init>:	push   r15)  <- rbpが指しているsaved_rbp
+0056| 0x7fffffffde98 --> 0x7ffff7a05b97 (<__libc_start_main+231>:	mov    edi,eax) <- リターンアドレス
+0064| 0x7fffffffdea0 --> 0x1 
+0072| 0x7fffffffdea8 --> 0x7fffffffdf78 --> 0x7fffffffe2b5 ("/home/takabaya-shi/environment/CTF-writeup/malleus-pwn/rot13/rot13")
+0080| 0x7fffffffdeb0 --> 0x100008000 
+0088| 0x7fffffffdeb8 --> 0x4007a2 (<main>:	push   rbp)
+0096| 0x7fffffffdec0 --> 0x0 
+0104| 0x7fffffffdec8 --> 0xd1145d117ed72115 
+0112| 0x7fffffffded0 --> 0x400650 (<_start>:	xor    ebp,ebp)
+0120| 0x7fffffffded8 --> 0x7fffffffdf70 --> 0x1 
+0128| 0x7fffffffdee0 --> 0x0 
+0136| 0x7fffffffdee8 --> 0x0 
+0144| 0x7fffffffdef0 --> 0x2eeba26ed1772115 
+0152| 0x7fffffffdef8 --> 0x2eebb2d1daa92115 
+```
 #### strcmp
 ```txt
    0x55555555529e <main+293>:	lea    rax,[rbp-0x90]
