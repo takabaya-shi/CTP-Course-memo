@@ -87,7 +87,15 @@ libcに存在する、そこに飛ばすだけでシェルが起動できるOne-
 - strace ./file (引数)   
 システムコールをトレースする
 - ltrace ./file (引数)   
-標準ライブラリ関数をトレースする
+標準ライブラリ関数をトレースする   
+- `socat TCP-LISTEN:4000,reuseaddr,fork EXEC:./file 2> /dev/null &`   
+- `socat TCP-LISTEN:4000,reuseaddr,fork 'system:gdbserver localhost\:5000 ./file' 2> /dev/null &`   
+gdbでアタッチできるようにgdbserverで立ち上げる。   
+`gdb-peda -ex 'target remote localhost:5000' -ex 'b main' -ex 'c'`   
+でアタッチ。   
+- `(echo -e "\xf0\xde\xbc\x9a\x78\x56\x34\x12"; cat) | ./file`   
+- `python -c "print('A'*4 + '\x78\x56\x34\x12')" | ./file`   
+
 ## 静的解析
 ### radare2
 - `radare2 ./binary`
