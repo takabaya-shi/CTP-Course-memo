@@ -1162,6 +1162,15 @@ hex(elf.plt["printf"]) #0x400590
 libc.symbols["__libc_start_main"]
 
 ```
+##### alarmのbypass
+`hexedit`でバイナリを書き換える。   
+`[Ctrl]+x`で保存   
+`[Ctrl]+c`で保存しない   
+`/`で検索。`e8 9f fe ff ff`で検索する。`[Tab]`で切り替え   
+```txt
+  400867:	bf 3c 00 00 00       	mov    edi,0x3c           <- bf ff ff 00 00 に書き換えてもよい
+  40086c:	e8 9f fe ff ff       	call   400710 <alarm@plt> <- 90 90 90 90 90 に書き換えてalarmを無視
+```
 ##### Cの関数
 ```txt
 ---------------------------------------------------------------------
