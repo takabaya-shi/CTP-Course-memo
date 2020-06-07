@@ -71,6 +71,13 @@
   - ASLR   
   実行ファイルのスタックやヒープ、ライブラリをメモリに配置するときに、アドレスの一部をランダムに配置する   
   ランダム化されるのは、ヒープ・スタック・mmap(共有ライブラリ)で、実行ファイルが配置されるアドレスはランダム化されない。   
+- `readelf -r file`   
+GOT領域のアドレスを表示   
+- `objdump -d -M intel -j .plt file`   
+pltのアドレスを表示   
+- `one_gadget libc-2.27.so`   
+libcに存在する、そこに飛ばすだけでシェルが起動できるOne-gadget RCEを探す。   
+前提条件などがある。   
 ## 動的解析
 - ./file (引数)   
 引数を変えてみて、入力に対して出力が一対一かどうか確認
@@ -120,7 +127,10 @@ main関数を逆アセンブル
    0x00007ffff79e4000 0x00007ffff7bcb000 r-xp	/lib/x86_64-linux-gnu/libc-2.27.so
    ```
    libc_baseが`0x00007ffff79e4000`とわかる   
-
+ - メモリの書き換え   
+   - `set *0x12345678=0x1234`   
+   - `set *(char *)0x1233456=0x12`   
+   バイト単位で書き換えられる   
 #### gdb-peda 
 - `gdb-peda ./file`   
 - `pdisas main`
@@ -1004,6 +1014,12 @@ gdb-peda$ bt
     stack_end=0x7fffffffdf78) at ../csu/libc-start.c:310
 #2  0x000000000040070a in _start ()
 ```
+##### 呼び出し規約
+- x86の場合   
+関数の引数はスタックに積まれる   
+- x64の場合   
+`rdi rsi	rdx	rcx	r8 r9`の順に引数としてレジスタが使われ、7個目以降はスタックが使われる。   
+
 ##### アドレス関係
 ```txt
 libc_base        = addr_libc_mainarena - offset_libc_mainarena
