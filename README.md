@@ -470,7 +470,8 @@ libc_start_main = 0x7ffff7a05b97 -231
 libc_base = libc_start_main - offset_libc_start
 ```
 
-### off-by-one error
+### Heap overflow
+#### off-by-one error
 read() で指定文字列を上限に読み込んだあと、ヌルバイト埋めが 1byte だけ溢れる脆弱性。   
 Heap問でチャンクサイズを書き換えるのに有効。頻出？   
 例)   
@@ -493,6 +494,46 @@ Input Content: AAAAAAAAAAAAAAAAAAAAAAAA
 0x555555757360:	0x4141414141414141	0x4141414141414141 <- 0x20 chunkがtcache[0x20]から取り出されて
 0x555555757370:	0x4141414141414141	0x0000000000000100 <- 0x111から0x100に変わった！！
                                                           これで0x100のtcacheをリンクできる！
+```
+#### C++のvtableの書き換え
+子クラスのメンバ関数を親クラスのポインタ経由で呼び出したとき、親クラスのメンバ関数ではなく子クラスのメンバ関数が呼びだされる。   
+C++では`virtual`で装飾されているメンバ関数がこの動作をし、**vtable**(仮想関数テーブル)で実現される。   
+```C++
+// Birdクラス
+struct Bird {
+    string name() {return typeid(*this).name();};
+    virtual void sing() = 0;     // sing()を仮想関数として宣言
+    virtual ~Bird() = default;   // 子クラスで再定義できる
+};
+
+// Parrotクラスは publicで Birdクラスを継承
+class Parrot: public Bird {
+    string memory;
+public:
+    Parrot () {            // コンストラクタ(初期化) 
+        cout<<"Input: ";
+        cin>>memory.data();   // この部分にHeap overflowの脆弱性 cin>>memory; とするべき
+                              // _M_local_bufの0x10サイズ以上を書き込むことで次のstringの_M_pを上書きできる
+    }
+    void sing() override {cout<<memory.c_str()<<endl;} // overrideで親クラスのsing()を再定義
+};
+
+Bird *cage[4];  // 親クラスBirdのポインタ
+
+// 子クラスParrotのオブジェクトを親クラスBirdのポインタ経由で生成
+// newの内部でmallocが実行され、Heapのアドレスがcage[0]に代入される
+void malloc() {
+    cage[0] = new Parrot();  // 子クラスParrotのオブジェクトを生成
+}
+
+// 親クラスBirdのポインタcage経由で子クラスParrotのメンバ関数sing()を呼び出す
+void show() {
+    cage[0]->sing();       // 子クラスParrotのsing()が呼びだされる
+}
+```
+```txt
+string memory;
+cin>>memory.data();
 ```
 ## よく見るかたまり
 #### 関数の先頭
