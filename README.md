@@ -533,8 +533,8 @@ void show() {
     cage[0]->sing();       // 子クラスParrotのsing()が呼びだされる
 }
 ```
+親クラスBirdのポインタcage経由で子クラスParrotのメンバ関数sing()を呼び出す際の動作   
 ```txt
-親クラスBirdのポインタcage経由で子クラスParrotのメンバ関数sing()を呼び出す
 
  Birdクラス(親)のポインタ*cage
 0x605380 |                      |
@@ -548,19 +548,62 @@ void show() {
 0x001018 |　      _M_p          | <- 文字列のポインタ (0x001028)
 0x001020 |   _M_string_length   |
 0x001028 |     _M_local_buf     | <- 文字列のサイズは0x10 cin>>memory.data()はここに書き込まれる
-0x001030 |       ......         |
-0x001038 |     prev_size        | <- 次のchunk
-0x001040 |     chunk size       | 
-0x001048 |     vtable+0x10      |
-0x001050 |　      _M_p          | <- 文字列のポインタ (0x001028)
-0x001058 |   _M_string_length   |
-0x001060 |       ......         |
+0x001030 |       ......         | <- prev_sizeは使用済み
+0x001038 |     chunk size       | 
+0x001040 |     vtable+0x10      |
+0x001048 |　      _M_p          | <- 文字列のポインタ (0x001028)
+0x001050 |   _M_string_length   |
+0x001058 |    _M_local_buf      |
 
  Parrotのvtable
 0x604d00 |         0x0          | <- 多重継承に使う情報
 0x604d08 |     typeinfo_addr    | 
 0x604d10 |  Parrot.sing()_addr  | <- [3] Parrotクラスの仮想メンバ関数のアドレス
+```
+**Heap leak**   
+```txt
+_M_p(文字列のポインタ)を書き換えて、既知の任意のアドレスの値を読みだす！
+Heapをleakするには、mallocが返すアドレスがある変数のアドレスの値をleakする！
+2つ分のchunkをmallocしておいて、一つ目をfreeして、Heap overflowで2つ目の_M_pを書き換える
 
+ Birdクラス(親)のポインタ*cage
+0x605380 |                      |
+0x605388 |  Parrot_object_addr  | <- Heapのアドレスが書き込まれている！ (0x001010)
+0x605390 |                      |
+
+ Parrotクラス(子)のobject [Heap]
+0x001000 |     prev_size        |
+0x001008 |     chunk size       | 
+0x001010 | Parrot_vtable+0x10   | 
+0x001018 |　      _M_p          | 
+0x001020 |   _M_string_length   |
+0x001028 |     _M_local_buf     | <- "A"*8
+0x001030 |       ......         | <- "A"*8
+0x001038 |     chunk size       | <- p64(0x31) chunk sizeの0x31を書き換えないように
+0x001040 |     vtable+0x10      | <- p64(0x604d10) 書き換えないように
+0x001048 |　      _M_p          | <- p64(0x605388) cage変数のアドレス
+0x001050 |   _M_string_length   |
+0x001058 |    _M_local_buf      |
+
+```
+**libc leak**
+```txt
+Heap leakとほぼ同じ
+libcをleakするには、すでに呼びだされた関数(libc_start_mainなど)のGOTにあるlibcのアドレスをleakする！
+
+ Parrotクラス(子)のobject [Heap]
+0x001000 |     prev_size        |
+0x001008 |     chunk size       | 
+0x001010 | Parrot_vtable+0x10   | 
+0x001018 |　      _M_p          | 
+0x001020 |   _M_string_length   |
+0x001028 |     _M_local_buf     | <- "A"*8
+0x001030 |       ......         | <- "A"*8
+0x001038 |     chunk size       | <- p64(0x31) chunk sizeの0x31を書き換えないように
+0x001040 |     vtable+0x10      | <- p64(0x604d10) 書き換えないように
+0x001048 |　      _M_p          | <- p64(0x604fe8) libc_start_mainのGOT_addr 
+0x001050 |   _M_string_length   |
+0x001058 |    _M_local_buf      |
 ```
 ```txt
 string memory;
