@@ -605,6 +605,26 @@ libcをleakするには、すでに呼びだされた関数(libc_start_mainな�
 0x001050 |   _M_string_length   |
 0x001058 |    _M_local_buf      |
 ```
+**one-gadget-rce**
+```txt
+Heap leak, libc leakが前提条件
+Heapのvtableの場所に書かれている関数が実行されるので、Heapにone-gaget-rceのアドレスを書き込んでそのアドレスにvtableの場所を書き換える
+
+ Parrotクラス(子)のobject [Heap]
+0x001000 |     prev_size        |
+0x001008 |     chunk size       | 
+0x001010 | Parrot_vtable+0x10   | 
+0x001018 |　      _M_p          | 
+0x001020 |   _M_string_length   |
+0x001028 |     _M_local_buf     | <- "A"*8
+0x001030 |       ......         | <- "A"*8
+0x001038 |     chunk size       | <- p64(0x31) chunk sizeの0x31を書き換えないように
+0x001040 |     vtable+0x10      | <- p64(0x001048) このアドレスにはメンバ関数のアドレスが書かれていた
+0x001048 |　      _M_p          | <- p64(0x7fffffff12345678) 偽のvtable(一個上)がここを指している
+0x001050 |   _M_string_length   |
+0x001058 |    _M_local_buf      |
+
+```
 ```txt
 string memory;
 cin>>memory.data();
