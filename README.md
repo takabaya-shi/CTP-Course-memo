@@ -534,6 +534,35 @@ void show() {
 }
 ```
 ```txt
+親クラスBirdのポインタcage経由で子クラスParrotのメンバ関数sing()を呼び出す
+
+ Birdクラス(親)のポインタ*cage
+0x605380 |                      |
+0x605388 |  Parrot_object_addr  | <- [1] Birdクラスのポインタcage[0] (0x001010)
+0x605390 |                      |
+
+ Parrotクラス(子)のobject [Heap]
+0x001000 |     prev_size        |
+0x001008 |     chunk size       | <- Birdクラスのポインタcage
+0x001010 | Parrot_vtable+0x10   | <- [2] Parrotのvtableへのアドレス (0x604d10) new Parrot()がこのアドレスを返す
+0x001018 |　      _M_p          | <- 文字列のポインタ (0x001028)
+0x001020 |   _M_string_length   |
+0x001028 |     _M_local_buf     | <- 文字列のサイズは0x10 cin>>memory.data()はここに書き込まれる
+0x001030 |       ......         |
+0x001038 |     prev_size        | <- 次のchunk
+0x001040 |     chunk size       | 
+0x001048 |     vtable+0x10      |
+0x001050 |　      _M_p          | <- 文字列のポインタ (0x001028)
+0x001058 |   _M_string_length   |
+0x001060 |       ......         |
+
+ Parrotのvtable
+0x604d00 |         0x0          | <- 多重継承に使う情報
+0x604d08 |     typeinfo_addr    | 
+0x604d10 |  Parrot.sing()_addr  | <- [3] Parrotクラスの仮想メンバ関数のアドレス
+
+```
+```txt
 string memory;
 cin>>memory.data();
 ```
