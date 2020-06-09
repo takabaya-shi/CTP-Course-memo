@@ -483,7 +483,81 @@ libc2.27より前のtcacheにはdouble freeのチェックがなく、任意の�
 
 ```
 #### Use After Free
-#### tcache poisoning
+#### tcache
+**tcache**は、malloc(0x18)などで比較的小さいサイズのチャンクを確保したときに、そのあとfreeすると、そのチャンクサイズに対応するtcache[0x18]の値でfdのアドレスの値を上書きし(tcache[0x18]に値がなければNULL(0x0000000)を書き込む)、tcache[0x18]にfdのアドレスを書き込む。   
+小さいサイズのmallocしたチャンクをfreeするときに、まずfastbinsの前にtcacheに書き込まれる。fastbinsもtcacheと同じくキャッシュ(freeした場所のアドレスをリンク形式で格納している)。   
+リンク形式なので、例えば以下のようになっている場合、   
+```txt
+tcache[0x20] = 0x00010000  
+address        value   
+0x00010000 -> |0x00020000| 
+0x00020000 -> |0x00050000|
+0x00050000 -> |0x00000000|
+```
+`tcache[0x20] -> 0x00010000 -> 0x00020000 -> 0x00050000 -> EOT(End of Tcache)`   
+となる。   
+tcache[]は最大7個まで使えて、それらを使い切ると次にfastbinsを使いだす。   
+fastbinsはmain_arena(Heap領域を管理している場所)に存在するが、tcacheは別の場所に存在。
+
+これを使ってfree時にtcache[0x20]にアドレスを書き込んでおけば、次にtcache[0x20]に対応したサイズ分mallocしたいときに、先ほどキャッシュしたtcache[0x20]に書かれているアドレスを再利用する。   
+
+##### malloc時の動作
+tcache[0x20]の値を、その値が指しているアドレスに書き換える。そして、アドレスを戻り値として返す。   
+下の例では`address_1`を返す。これによって、`address_1`に書き込むことができる。   
+tcache[0x20]に入っているということは、チャンクサイズが`0x20`ということを意味しているが、本当に`address_1-0x8`が`0x20`かどうかはmalloc時に確認しないし、`address_1-0x8`に`0x20`を上書きするようなこともしない。   
+```txt
+malloc(0x18)前
+tcache[0x20] -> address_1 -> address_2 -> address_3 -> EOT
+
+malloc(0x18)後
+tcache[0x20] -> address_2 -> address_3 -> EOT  ([1] 0x18に対応するtcache[0x20]の値であるaddress_1を返す)
+                                               ([2] 0x18に対応するtcache[0x20]の値を次のaddress_2に上書き)
+```
+##### free時の動作
+free(B)が呼ばれたとき(Bはmallocしていたチャンクのアドレス)、`B-0x8`に書かれている`chunk size`の値を確認して、その値に対応する`tcache->entries[tc_idx]`(0x21が書かれていればtcache[0x20])の値を`Bのアドレス`に書き込んで、`Bのアドレス`を`tcache->entries[tc_idx]`に書き込む。   
+```txt
+free(B)前
+tcache[0x20] -> EOT
+address         value
+0x00010000 -> |0x0000000000000021| (0x21がチャンクサイズ。これに対応するtcache[0x20]をfree時に操作する)
+0x00010008 -> |0x4141414141414141| <- B (ここがmallocされていた場所。今から解放したい)
+
+free(B)後
+tcache[0x20] -> addr_B -> EOT      ([2] Bのアドレスで、B-0x8の値(0x21)に対応するtcache[0x21]が上書きされた)
+address         value
+0x00010000 -> |0x0000000000000021|
+0x00010000 -> |0x0000000000000000| ([1] B-0x8の値(0x21)に対応するtcache[0x20]の値(NULL)でBのアドレスの値が上書きされた)
+```
+##### tcache poisoning
+**tcache poisoning**は、mallocするときに再利用するtcache[]に書かれている`チャンク(だと思っている)アドレス-0x8`にある(と思っている)`chunk size`を確認しないことを利用する。   
+例えば、以下の状況の時にmallocしようとすると   
+```txt
+tcache[0x20] -> _free_hook(free関数のアドレスが書いてあるアドレス) -> EOT
+```
+以下のようにfree関数のアドレスが書いてある場所にAAAAAAAAを書きこめる。   
+```txt
+# malloc(0x18)前
+
+tcache[0x20] -> _free_hook(free関数のアドレスが書いてあるアドレス) -> EOT
+address                 value
+_free_hook - 0x8 ->  |0x12345678_12345678| (適当な値)
+_free_hook       ->  |0x7fff1234_00000000| (free関数のアドレス)
+
+# malloc(0x18)後    (この時、適当な値0x12345678_12345678がchunk sizeとして適当かどうかのチェックがないのがヤバい！)
+                    (普通は、0x21とかが入っているべき)
+                    
+tcache[0x20] -> EOT (つまり0x00000000_00000000のNULL)
+address                 value
+_free_hook - 0x8 ->  |0x12345678_12345678| (適当な値)
+_free_hook       ->  |0x7fff1234_00000000| (free関数のアドレス)  <- B
+
+# read(0,B,0x80) "AAAAAAAA"を入力する
+
+tcache[0x20] -> EOT
+address                 value
+_free_hook - 0x8 ->  |0x12345678_12345678| (適当な値)
+_free_hook       ->  |0x41414141_41414141| (AAAAAAAAが書き込まれる) <- B
+```
 ##### tcacheの通常時の動作
 [1] 0x10サイズをmalloc(content)して、`AAAAAAAABBBBBBBB`を書き込む。   
 [2] 0x20サイズをmalloc(content)して、`DDDDDDDDEEEEEEEEFFFFFFFFGGGGGGGG`を書き込む。   
