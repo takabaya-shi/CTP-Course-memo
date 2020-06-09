@@ -24,19 +24,8 @@
   - [format string bug](#format-string-bug)
   - [libc leak](#libc-leak)
     - [stack上のbacktraceを利用](#stack%E4%B8%8A%E3%81%AEbacktrace%E3%82%92%E5%88%A9%E7%94%A8)
-  - [Heap](#heap)
-    - [double free](#double-free)
-    - [Use After Free](#use-after-free)
-    - [tcache poisoning](#tcache-poisoning)
-      - [tcacheの通常時の動作](#tcache%E3%81%AE%E9%80%9A%E5%B8%B8%E6%99%82%E3%81%AE%E5%8B%95%E4%BD%9C)
-      - [tcacheの7つ埋めたあとにfastbinsに入る動作](#tcache%E3%81%AE7%E3%81%A4%E5%9F%8B%E3%82%81%E3%81%9F%E3%81%82%E3%81%A8%E3%81%ABfastbins%E3%81%AB%E5%85%A5%E3%82%8B%E5%8B%95%E4%BD%9C)
+  - [Heap overflow](#heap-overflow)
     - [off-by-one error](#off-by-one-error)
-      - [off-by-one-errorでchunk sizeを書き換えてヒープのleak](#off-by-one-error%E3%81%A7chunk-size%E3%82%92%E6%9B%B8%E3%81%8D%E6%8F%9B%E3%81%88%E3%81%A6%E3%83%92%E3%83%BC%E3%83%97%E3%81%AEleak)
-      - [off-by-one-errorとHeap leak+tcacheを7つリンク](#off-by-one-error%E3%81%A8heap-leaktcache%E3%82%927%E3%81%A4%E3%83%AA%E3%83%B3%E3%82%AF)
-    - [Heap overlap](#heap-overlap)
-    - [Heap領域の上書きの利用](#heap%E9%A0%98%E5%9F%9F%E3%81%AE%E4%B8%8A%E6%9B%B8%E3%81%8D%E3%81%AE%E5%88%A9%E7%94%A8)
-    - [Heap問のlibc leak](#heap%E5%95%8F%E3%81%AElibc-leak)
-    - [Heapでの system("/bin/sh")実行の流れ](#heap%E3%81%A7%E3%81%AE-systembinsh%E5%AE%9F%E8%A1%8C%E3%81%AE%E6%B5%81%E3%82%8C)
     - [C++のvtableの書き換え](#c%E3%81%AEvtable%E3%81%AE%E6%9B%B8%E3%81%8D%E6%8F%9B%E3%81%88)
 - [よく見るかたまり](#%E3%82%88%E3%81%8F%E8%A6%8B%E3%82%8B%E3%81%8B%E3%81%9F%E3%81%BE%E3%82%8A)
     - [関数の先頭](#%E9%96%A2%E6%95%B0%E3%81%AE%E5%85%88%E9%A0%AD)
@@ -44,6 +33,14 @@
     - [main関数の状態](#main%E9%96%A2%E6%95%B0%E3%81%AE%E7%8A%B6%E6%85%8B)
     - [strcmp](#strcmp)
     - [変数](#%E5%A4%89%E6%95%B0)
+    - [tcacheの通常時の動作](#tcache%E3%81%AE%E9%80%9A%E5%B8%B8%E6%99%82%E3%81%AE%E5%8B%95%E4%BD%9C)
+    - [tcacheの7つ埋めたあとにfastbinsに入る動作](#tcache%E3%81%AE7%E3%81%A4%E5%9F%8B%E3%82%81%E3%81%9F%E3%81%82%E3%81%A8%E3%81%ABfastbins%E3%81%AB%E5%85%A5%E3%82%8B%E5%8B%95%E4%BD%9C)
+    - [Heap overlap](#heap-overlap)
+    - [off-by-one-errorでchunk sizeを書き換えてヒープのleak](#off-by-one-error%E3%81%A7chunk-size%E3%82%92%E6%9B%B8%E3%81%8D%E6%8F%9B%E3%81%88%E3%81%A6%E3%83%92%E3%83%BC%E3%83%97%E3%81%AEleak)
+    - [off-by-one-errorとHeap leak+tcacheを7つリンク](#off-by-one-error%E3%81%A8heap-leaktcache%E3%82%927%E3%81%A4%E3%83%AA%E3%83%B3%E3%82%AF)
+    - [Heap領域の上書きの利用](#heap%E9%A0%98%E5%9F%9F%E3%81%AE%E4%B8%8A%E6%9B%B8%E3%81%8D%E3%81%AE%E5%88%A9%E7%94%A8)
+    - [Heap問のlibc leak](#heap%E5%95%8F%E3%81%AElibc-leak)
+    - [Heapでの system("/bin/sh")実行の流れ](#heap%E3%81%A7%E3%81%AE-systembinsh%E5%AE%9F%E8%A1%8C%E3%81%AE%E6%B5%81%E3%82%8C)
     - [覚えておきたい](#%E8%A6%9A%E3%81%88%E3%81%A6%E3%81%8A%E3%81%8D%E3%81%9F%E3%81%84)
       - [方針](#%E6%96%B9%E9%87%9D)
       - [起動時の動作](#%E8%B5%B7%E5%8B%95%E6%99%82%E3%81%AE%E5%8B%95%E4%BD%9C)
@@ -58,7 +55,7 @@
       - [alarmのbypass](#alarm%E3%81%AEbypass)
       - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
 - [参考文献](#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE)
-  - [Heap](#heap-1)
+  - [Heap](#heap)
 - [todo](#todo)
 - [vulnhubメモ](#vulnhub%E3%83%A1%E3%83%A2)
   - [古いバージョンのLinuxのインストール](#%E5%8F%A4%E3%81%84%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3%E3%81%AElinux%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB)
@@ -531,6 +528,58 @@ pwndbg> x/16gx 0x555555757230
 0x555555757290:	0x4646464646464646	0x4747474747474747
 0x5555557572a0:	0x0000000000000000	0x0000000000020d61
 pwndbg> 
+```
+##### tcacheの7つ埋めたあとにunsorted_binsに入る動作
+```txt
+for i in range(8):
+    store(str(i),"a"*0x80) <- 0x91sizeのchunkを8個確保 
+store("0","A")             <- [*] 0x20sizeのchunkを最後にいれる！　これが超大事！！
+for i in range(7):
+    delete(str(i))         <- [1] これを実行後。7つ分free
+delete("7")                <- [2] これを実行後。8個目をfree
+---------------------------------------------------------------------------------
+[1]
+
+tcachebins
+0x90 [  7]: 0x5555557575c0 —▸ 0x555555757530 —▸ 0x5555557574a0 —▸ 0x555555757410 —▸ 0x555555757380 —▸ 0x5555557572f0 —▸ 0x555555757260 ◂— 0x0
+unsortedbin
+all: 0x0
+
+0x555555757630:	0x6161616161616161	0x6161616161616161
+0x555555757640:	0x0000000000000000	0x0000000000000091 <- 8個目のchunk まだfreeされていない
+0x555555757650:	0x6161616161616161	0x6161616161616161
+       ~                 ~                   ~
+0x5555557576c0:	0x6161616161616161	0x6161616161616161
+0x5555557576d0:	0x0000000000000000	0x0000000000000021 <- 0x21sizeのchunk
+0x5555557576e0:	0x0000000041414141	0x0000000000000000
+0x5555557576f0:	0x0000000000000000	0x0000000000020911 <- topのchunk
+0x555555757700:	0x0000000000000000	0x0000000000000000
+
+---------------------------------------------------------------------------------
+[2] delete("7")を実行後 (8個目をfree後)
+
+tcachebins
+0x90 [  7]: 0x5555557575c0 —▸ 0x555555757530 —▸ 0x5555557574a0 —▸ 0x555555757410 —▸ 0x555555757380 —▸ 0x5555557572f0 —▸ 0x555555757260 ◂— 0x0
+unsortedbin
+all: 0x555555757640 —▸ 0x7ffff7dcfca0 (main_arena+96) ◂— 0x555555757640 /* '@vuUUU' */
+
+0x555555757630:	0x6161616161616161	0x6161616161616161
+0x555555757640:	0x0000000000000000	0x0000000000000091 <- 8個目のchunkがfreeされて、fd,bkのmain_arenaのアドレスが！
+0x555555757650:	0x00007ffff7dcfca0	0x00007ffff7dcfca0
+0x555555757660:	0x6161616161616161	0x6161616161616161
+       ~                 ~                   ~ 
+0x5555557576c0:	0x6161616161616161	0x6161616161616161
+0x5555557576d0:	0x0000000000000090	0x0000000000000020 <- unsorted_binsに登録される際に0x21から0x20に上書き 
+0x5555557576e0:	0x0000000041414141	0x0000000000000000    (8個目のchunkがfreeされた＝直前のchunkは使用されていない)
+0x5555557576f0:	0x0000000000000000	0x0000000000020911 <- top
+0x555555757700:	0x0000000000000000	0x0000000000000000
+
+freeする8個目のchunkの直後のchunk(0x21)はtopではない
+-> 直後のchunk(0x21)は使用中である
+     -> 直後のchunk(0x21)のPREV_INUSEを0に (0x20に更新)
+        直後のchunk(0x21)のPREV_SIZEを更新 (0x90を上書きする)
+        
+もし、直後のchunkがtopなら、unsorted_binsには登録されずに、topとconsolidateしtopを更新
 ```
 ##### tcacheの7つ埋めたあとにfastbinsに入る動作
 ```txt
