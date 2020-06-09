@@ -1508,7 +1508,7 @@ libc_gadget = libc_base + 0x4f2c5
 |               |
 |               | <- fastbinsの実体 (0x80bytes以下)
 |               |
-|               | <- bins(unsortedbins)の実体
+|               | <- bins(unsortedbins)の実体 [main_arena+0x60]
 |               |
 |               |
 |               |
@@ -1543,7 +1543,7 @@ gdb-peda$ x /gx $rbp-0x88
 ```
 ##### pwntools
 ###### 文字列操作
-- 0x7fff1234 -> b '\x34\x12\xff\x7f'   
+- `0x7fff1234 -> b '\x34\x12\xff\x7f'`   
 ```python
 #python3のみ
 # 文字列と結合しようとすると、
@@ -1559,7 +1559,7 @@ p64(0x7fff1234) # '4\x12\xff\x7f\x00\x00\x00\x00'
 payload  = "A" * 0x28 + p64(0x7fff1234)
 r.send(payload)
 ```
-- \x34\x12\xff\x7f -> 0x7fff1234   
+- `\x34\x12\xff\x7f -> 0x7fff1234`   
 ```python
 # python2 のみ
 from pwn import *
@@ -1575,6 +1575,11 @@ print(hex(struct.unpack('<I',b'\x34\x12\xff\x7f')[0]))
 ```python
 lib_main_start_str = "0x7fffffff12345678"
 hex(int(str(lib_main_start_str), 16))      # 0x7fffffff12345678
+```
+- `\`ruUUU -> 0x555555757260`   
+```python
+heap_addr = conn.recv(6)
+hex(u64(heap_addr.ljust(8,b'\0'))) #0x555555757260
 ```
 ###### 通信関係
 ```txt
@@ -1605,6 +1610,11 @@ p64(elf.plt["printf"]) #\x90\x05@\x00\x00\x00\x00\x00
 hex(elf.plt["printf"]) #0x400590
 libc.symbols["__libc_start_main"] #137904
 offset_libc_printf = libc.symbols["printf"] #137904
+offset_libc_malloc_hook = libc.symbols['__malloc_hook']
+offset_libc_mainarena   = offset_libc_malloc_hook + 0x10
+offset_libc_free_hook = libc.symbols['__free_hook']
+offset_libc_system = libc.symbols['system']
+addr_libc_str_sh    = next(libc.search(b'/bin/sh'))
 
 info('addr_libc_base    = 0x{:08x}'.format(libc_base))
 ```
