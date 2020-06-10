@@ -1230,7 +1230,7 @@ all: 0x555555757ac0 —▸ 0x7ffff7dcfca0 (main_arena+96) ◂— 0x555555757ac0
 0x555555757be0:	0x0000000000000000	0x0000000000000021
 ```
 **0x100以上のmallocができない AND 複数のmallocのアドレスを保持できる AND free時にそのアドレスが消される AND libc2.27**   
-```
+```python
 # 0x90のchunkを7個作成
 for i in range(7):
     store(str(i),str(i)*(0x80) )
