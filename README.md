@@ -63,12 +63,6 @@
     - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
 - [参考文献](#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE)
   - [Heap](#heap-1)
-- [vulnhubメモ](#vulnhub%E3%83%A1%E3%83%A2)
-  - [古いバージョンのLinuxのインストール](#%E5%8F%A4%E3%81%84%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3%E3%81%AElinux%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB)
-  - [virtualbox の設定](#virtualbox-%E3%81%AE%E8%A8%AD%E5%AE%9A)
-  - [install openssh](#install-openssh)
-  - [install apache2](#install-apache2)
-  - [install dovecot](#install-dovecot)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
