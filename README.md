@@ -481,7 +481,7 @@ libc_base = libc_start_main - offset_libc_start
 
 ### Heap
 #### double free
-libc2.27より前のtcacheにはdouble freeのチェックがなく、任意のアドレスに任意の値を書き込むことができる！   
+libc2.2より前のtcacheにはdouble freeのチェックがなく、任意のアドレスに任意の値を書き込むことができる！   
 ```txt
 B=malloc(0x88); "a"を書き込む;
 free(B);                      <- [1]
