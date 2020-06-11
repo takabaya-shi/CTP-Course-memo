@@ -367,7 +367,7 @@ takabaya-shi@takabayashi-VirtualBox:~/$
 printf(buf)
 ```
 また、ret2pltなどでprintf関数を呼び出した際にも有効！！   
-`%p`の場所は、x64の場合は7まではrsi,rdx,..のレジスタの内容で、8以降rspになるらしいので、`sub rsp YY`と`rbp-0xXX`を対応させて逆算するらしい。   
+`%p`の場所は、x64の場合は5まではrsi,rdx,..のレジスタの内容で、6以降rspになるらしいので、`sub rsp YY`と`rbp-0xXX`を対応させて逆算するらしい。   
 - `%p`   
 スタック上のデータをvoid\*型として16進数で表示   
 - `%n$p`   
