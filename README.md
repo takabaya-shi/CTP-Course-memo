@@ -422,6 +422,8 @@ printfが呼ばれてから%nを見つけるまでに出力された文字数を
 [2] 0xdeadbeefをprintfのポインタの引数として、このアドレスに任意の値を書き込める！
 ```
 - `%hn`   
+２バイトだけ書き込む   
+- `%hhn`   
 1バイトだけ書き込む   
 ```python
 # 参考 https://kusano-k.hatenadiary.com/entry/20140302/1393781714
