@@ -180,7 +180,13 @@ https://github.com/hugsy/gef
 でGhidraを起動。
 - `[File]` -> `[import file]`でbinaryをインポート   
 - `[Symbol Tree]`(左真ん中) -> `[Functions]`で関数を確認。ダブルクリックでそこに移動。   
-- `[Decompile]`(右下) でコンパイル結果を表示
+- `[Decompile]`(右下) でコンパイル結果を表示   
+
+### Ollydbg
+- `[Shift]+[F8]`   
+- `[Alt]+E`   
+実行可能モジュールのリストを表示   
+
 ### angr
 以下でInstall   
 ```txt
@@ -360,6 +366,21 @@ constraints:
 constraints:
   [rsp+0x70] == NULL
 takabaya-shi@takabayashi-VirtualBox:~/$
+```
+#### スタック上に用意したペイロードにjmp
+SEH bofなどでは、サイズの大きい領域に書き込んだペイロードを実行するために、`jmp-0x300`命令などでそのペイロードのあるスタックのアドレスにジャンプすることが多い。   
+その際、スタックのアドレスはランダム化されており、わからないため、相対アドレスで参照することになる。   
+```txt
+# $baddata .= "\x59\xFE\xCD\xFE\xCD\xFE\xCD\xFF\xE1\xE8\xF2\xFF\xFF\xFF";
+
+\x59			POP ECX      <- [2] call命令によってpushされたアドレスをECXに代入。スタックのアドレスが入る
+\xFE\xCD		DEC CH     <- [3] (ECX-256)と同じ
+\xFE\xCD		DEC CH     <- [4] (ECX-256)と同じ
+\xFE\xCD		DEC CH     <- [5] (ECX-256)と同じ
+\xFF\xE1		JMP ECX    <- [6] popしたECX-758のアドレスにjmpして、ここに設置したペイロードを実行！
+\xE8\xF2\xFF\xFF\xFF	CALL [relative -0D] <- [1] まずここにjmpしてcall $-0xdを呼び出す(前提条件)
+                                             この命令の存在する次のアドレスをESPの指すアドレスにpushする
+                                             この命令をスタック上で実行することを前提としているため、次のpopでスタックのアドレスが手に入る
 ```
 ### format string bug
 以下のようにフォーマットが指定されていない場合に有効。   
@@ -1936,6 +1957,16 @@ print(rop.dump())
 # 0x0018:   0x7ffff7b97e9a [arg0] rdi = 140737349516954
 # 0x0020:   0x7ffff7ac8fa0 execv
 conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
+```
+#### nasm
+`/usr/share/metasploit-framework/tools/exploit/nasm_shell.rb `   
+```txt
+nasm > jmp $+17
+00000000  EB0F              jmp short 0x11 <- 相対アドレス。jmp命令のあるアドレス+0x11にjmpするということ
+nasm > call $-0d
+00000000  E8FBFFFFFF        call 0x0 <- リターンアドレスをセットしてjmpと同様に相対アドレスにjmp
+nasm > jmp esp
+00000000  FFE4              jmp esp
 ```
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
