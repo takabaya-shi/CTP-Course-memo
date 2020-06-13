@@ -1641,6 +1641,123 @@ Heapのvtableの場所に書かれている関数が実行されるので、Heap
 0x001058 |    _M_local_buf      |
 
 ```
+### SEH overflow
+Windowsの例外処理の際に実行されるハンドラーのアドレスはスタック上に格納されるため、そこをうまい感じに書き換えてやると任意のアドレスにjmpされられる(EIPを制御できる)   
+**SEHレコード**   
+```txt
+typedef struct _EXCEPTION_REGISTRATION_RECORD  <- SEHレコード(スタック上に存在)
+{
+ struct _EXCEPTION_REGISTRATION_RECORD *_next;   <- 次のSEHレコードのnextのアドレス
+ PEXCEPTION_ROUTINE _handler;                    <- 例外処理のハンドラー(例外発生時に実行される)
+} EXCEPTION_REGISTRATION_RECORD, *PEXCEPTION_REGISTRATION_RECORD;
+
+   スタック       アドレス
+|             | (0x000)
+|    next_1   | (0x004) <- [0x18] next_2を指している
+|  handler_1  | (0x008) <- [handler_1の処理のアドレス]
+|             | (0x00c)
+|             | (0x0010)
+|             | (0x0014)
+|    next_2   | (0x0018)
+|  handler_2  | (0x001c)
+
+```
+**例外ハンドラの引数**    
+```txt
+EXCEPTION_DISPOSITION __cdecl _except_handler (    <- handlerが呼びだされる際の引数を定義
+ _In_ struct _EXCEPTION_RECORD *_ExceptionRecord,
+ _In_ void * _EstablisherFrame,                    <- SEHレコードのnextのアドレスを二つ目(esp+8)に持つ
+ _Inout_ struct _CONTEXT *_ContextRecord,
+ _Inout_ void * _DispatcherContext
+);
+
+(esp+8)にSEHレコードのnextのアドレスが存在するため、pop,pop,retを実行することで、
+このSEHレコードのnextのアドレスをEIPに代入できる！！
+
+-------------------------------------------------------------------
+call handler_1(EIPにhandler_1のアドレスを代入)直前
+
+   スタック       アドレス
+|             | (0x000)
+|   E_Record  | (0x004) <- esp
+|   E_Frame   | (0x008) <- esp+4  SEHレコードのアドレス"0x104"が書き込まれている
+|   C_Record  | (0x00c)
+|   D_Context | (0x010)
+       ~           ~
+|             | (0x100)
+|    next_1   | (0x104) <- "AAAA"をbofで上書き
+|  handler_1  | (0x108) <- pop,pop,retのアドレスで上書き
+|             | (0x10c)
+|             | (0x0110)
+|             | (0x0114)
+|    next_2   | (0x0118)
+|  handler_2  | (0x011c)
+-------------------------------------------------------------------
+call handler_1(EIPにhandler_1のアドレスを代入)直後
+pop,pop,ret直前
+
+EIP = pop,pop,retのアドレス
+
+スタック       アドレス
+|   ret_addr  | (0x000) <- esp handler_1のret_addrがcall時にpushされたのでespがずれた！
+|   E_Record  | (0x004) <- esp+4
+|   E_Frame   | (0x008) <- esp+8 (esp+4からesp+8に変わった！)
+|   C_Record  | (0x00c)
+|   D_Context | (0x010)
+       ~           ~
+|             | (0x100)
+|    next_1   | (0x104) <- "AAAA"をbofで上書き
+|  handler_1  | (0x108) <- pop,pop,retのアドレスで上書き
+|             | (0x10c)
+|             | (0x0110)
+|             | (0x0114)
+|    next_2   | (0x0118)
+|  handler_2  | (0x011c)
+
+-------------------------------------------------------------------
+ret直前　(pop,pop後)
+
+スタック       アドレス
+|   ret_addr  | (0x000) 
+|   E_Record  | (0x004) 
+|   E_Frame   | (0x008) <- esp  SEHレコードのアドレス"0x104"が書き込まれている
+|   C_Record  | (0x00c) <- esp+4
+|   D_Context | (0x010)
+       ~           ~
+|             | (0x100)
+|    next_1   | (0x104) 
+|  handler_1  | (0x108) 
+|             | (0x10c)
+|             | (0x0110)
+|             | (0x0114)
+|    next_2   | (0x0118)
+|  handler_2  | (0x011c)
+-------------------------------------------------------------------
+ret直後　
+
+ret命令で、その時にESPが指している値をEIPに代入
+EIP = 0x104
+
+スタック       アドレス
+|   ret_addr  | (0x000) 
+|   E_Record  | (0x004) 
+|   E_Frame   | (0x008)        SEHレコードのアドレス"0x104"がEIPに代入された！
+|   C_Record  | (0x00c) <- esp
+|   D_Context | (0x010) <- esp+4
+       ~           ~
+|             | (0x100)
+|    next_1   | (0x104) <- EIP "AAAA"が書き込まれているので、次は命令"0x41414141"を実行しようとする！
+|  handler_1  | (0x108) <- pop,pop,retのアドレスで上書きされている
+|             | (0x10c)
+|             | (0x0110)
+|             | (0x0114)
+|    next_2   | (0x0118)
+|  handler_2  | (0x011c)
+
+"0x108"にはアドレスが書き込まれており、命令ではないためここに処理が進むとエラーとなってしまう！
+この"0x41414141"を"jmp $+8"とかで"0x10c"に向けて、そこに"jmp $-0x300"命令を書いておけば、サイズの大きいスタック領域をEIPが指すようになる！
+そこにペイロードをセットしておけば、ペイロードを実行できる！
+```
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
