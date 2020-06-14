@@ -64,7 +64,7 @@
       - [通信関係](#%E9%80%9A%E4%BF%A1%E9%96%A2%E4%BF%82)
       - [ELF解析](#elf%E8%A7%A3%E6%9E%90)
       - [Rop Chain](#rop-chain)
-    - [nasm](#nasm)
+    - [metasploit](#metasploit)
     - [alarmのbypass](#alarm%E3%81%AEbypass)
     - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
 - [参考文献](#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE)
