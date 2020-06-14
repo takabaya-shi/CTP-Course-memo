@@ -47,7 +47,6 @@
   - [SEH overflow](#seh-overflow)
     - [Payload実行までの流れ](#payload%E5%AE%9F%E8%A1%8C%E3%81%BE%E3%81%A7%E3%81%AE%E6%B5%81%E3%82%8C)
     - [SafeSEH](#safeseh)
-    - [PoC](#poc)
 - [よく見るかたまり](#%E3%82%88%E3%81%8F%E8%A6%8B%E3%82%8B%E3%81%8B%E3%81%9F%E3%81%BE%E3%82%8A)
     - [関数の先頭](#%E9%96%A2%E6%95%B0%E3%81%AE%E5%85%88%E9%A0%AD)
     - [関数の終わり](#%E9%96%A2%E6%95%B0%E3%81%AE%E7%B5%82%E3%82%8F%E3%82%8A)
@@ -2234,4 +2233,14 @@ Pwnの全体像がわかる。
 
 https://shift-crops.hatenablog.com/entry/2020/05/24/211147#ChildHeap-Pwn-473pt-7-solves   
 ctf4bのchildheapの解説が神。わかりやすいし神。   
-  
+
+### SEH overflow
+https://resources.infosecinstitute.com/seh-exploit/#gref   
+Exploitの具体的な手順が書いてある。わかりやすい   
+https://www.ffri.jp/assets/files/research/research_papers/SEH_Overwrite.pdf   
+原理が書いてある。わかりやすい   
+http://inaz2.hatenablog.com/entry/2015/07/13/011758   
+原理が書いてある。わかりやすい   
+https://www.corelan.be/index.php/2009/07/25/writing-buffer-overflow-exploits-a-quick-and-basic-tutorial-part-3-seh/   
+Exploitの手順が書いてある。これもわかりやすい   
+
