@@ -2245,7 +2245,13 @@ nasm > mov eax,0xff919e93
 00000000  B8939E91FF        mov eax,0xff919e93 ; xorをあらかじめ計算しておいて逆算する
 nasm > xor eax,ebx
 00000000  31D8              xor eax,ebx
-
+```
+```txt
+nasm > mov esi,eax
+00000000  89C6              mov esi,eax    ; ダメじゃないけど2バイト必要
+---------------------------------------------------
+nasm > xchg eax,esi
+00000000  96                xchg eax,esi   ; 2バイトが1バイトになった！
 ```
 #### Windows周り
 - `arwin`   
