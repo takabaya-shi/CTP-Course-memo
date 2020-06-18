@@ -2212,6 +2212,28 @@ xor ebx,ebx
 mov bl,6
 push ebx        ; Protocol IPPROTO_TCP 6
 ```
+##### bypass NULLbyte
+```txt
+nasm > mov eax,0x0
+00000000  B800000000        mov eax,0x0   ; ダメ
+-----------------------------------------------------
+nasm > xor eax,eax
+00000000  31C0              xor eax,eax   ; OK
+```
+```txt
+nasm > MOV [EBP+0x80],Al
+00000000  888580000000      mov [ebp+0x80],al  ; ダメ
+------------------------------------------------------
+nasm > add ebp,0x1
+00000000  83C501            add ebp,byte +0x1
+nasm > MOV [EBP+0x7f],Al
+00000000  88457F            mov [ebp+0x7f],al  ; OK
+
+nasm > MOV [EBP-0x80],Al
+00000000  884580            mov [ebp-0x80],al  ; 負のオフセットならなおよし
+nasm > MOV [EBP-0x81],Al
+00000000  88857FFFFFFF      mov [ebp-0x81],al
+```
 #### Windows周り
 - `arwin`   
 ```txt
