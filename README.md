@@ -2253,6 +2253,22 @@ nasm > mov esi,eax
 nasm > xchg eax,esi
 00000000  96                xchg eax,esi   ; 2バイトが1バイトになった！
 ```
+```txt
+nasm > push dword 0x5c11
+00000000  68115C0000        push dword 0x5c11 ; ダメ
+-------------------------------------------------------
+nasm > push word 0x5c11
+00000000  6668115C          push word 0x5c11  ; OK
+```
+```txt
+nasm > mov edx,0x646d63                        ; "cmd" 63 6D 64 -> 0x646d63
+00000000  BA636D6400        mov edx,0x646d63   ; ダメ
+---------------------------------------------------------
+nasm > mov edx,0x646d6363
+00000000  BA63636D64        mov edx,0x646d6363 ; "ccmd" 0x646d6363
+nasm > shr edx,8
+00000000  C1EA08            shr edx,byte 0x8   ; "cmd" 0x00646d63 右8ビットシフト(左は0埋め)
+```
 #### Windows周り
 - `arwin`   
 ```txt
