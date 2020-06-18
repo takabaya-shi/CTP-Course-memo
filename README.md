@@ -2235,6 +2235,18 @@ nasm > MOV [EBP-0x80],Al
 nasm > MOV [EBP-0x81],Al
 00000000  88857FFFFFFF      mov [ebp-0x81],al
 ```
+```txt
+nasm > mov eax,0x006e616c
+00000000  B86C616E00        mov eax,0x6e616c   ; ダメ
+------------------------------------------------------
+nasm > mov ebx,0xffffffff
+00000000  BBFFFFFFFF        mov ebx,0xffffffff
+nasm > mov eax,0xff919e93
+00000000  B8939E91FF        mov eax,0xff919e93 ; xorをあらかじめ計算しておいて逆算する
+nasm > xor eax,ebx
+00000000  31D8              xor eax,ebx
+
+```
 #### Windows周り
 - `arwin`   
 ```txt
