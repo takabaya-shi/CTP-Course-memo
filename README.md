@@ -2269,6 +2269,17 @@ nasm > mov edx,0x646d6363
 nasm > shr edx,8
 00000000  C1EA08            shr edx,byte 0x8   ; "cmd" 0x00646d63 右8ビットシフト(左は0埋め)
 ```
+```txt
+nasm > mov eax,0x100
+00000000  B800010000        mov eax,0x100  ; ダメ
+---------------------------------------------------------
+nasm > xor eax,eax
+00000000  31C0              xor eax,eax
+nasm > inc eax
+00000000  40                inc eax           ; 0x00000001
+nasm > rol eax,8
+00000000  C1C008            rol eax,byte 0x8  ; 0x00000100  2文字分左にローテーションさせる
+```
 #### Windows周り
 - `arwin`   
 ```txt
