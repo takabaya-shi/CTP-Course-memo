@@ -2544,3 +2544,10 @@ http://inaz2.hatenablog.com/entry/2015/07/13/011758
 https://www.corelan.be/index.php/2009/07/25/writing-buffer-overflow-exploits-a-quick-and-basic-tutorial-part-3-seh/   
 Exploitの手順が書いてある。これもわかりやすい   
 
+### Egg-Hunting
+https://www.corelan.be/index.php/2010/01/09/exploit-writing-tutorial-part-8-win32-egg-hunting/   
+かなり詳細に書いてある。わかりやすい。   
+https://resources.infosecinstitute.com/buffer-overflow-vulnserver/   
+vulnserver.exeのEgg-HuntingのExploitが丁寧に書いてある。   
+
+
