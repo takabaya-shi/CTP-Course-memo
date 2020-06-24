@@ -69,6 +69,7 @@
     - [metasploit](#metasploit)
     - [nasm](#nasm)
       - [bypass NULLbyte](#bypass-nullbyte)
+      - [Egg-Hunter](#egg-hunter)
     - [Windows周り](#windows%E5%91%A8%E3%82%8A)
     - [alarmのbypass](#alarm%E3%81%AEbypass)
     - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
