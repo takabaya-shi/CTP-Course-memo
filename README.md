@@ -76,7 +76,6 @@
 - [参考文献](#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE)
   - [Heap](#heap-1)
   - [SEH overflow](#seh-overflow-1)
-  - [Egg-Hunting](#egg-hunting)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -207,7 +206,9 @@ https://github.com/hugsy/gef
 set brakepoint   
 - `[Alt]+E`   
 実行可能モジュールのリストを表示   
-
+- `[Alt]+M`   
+メモリの状態を表示   
+一番上を選択した状態で`[Search]`すると上から検索できる。`[Ctrl]+L`で続きを検索。   
 ### angr
 以下でInstall   
 ```txt
