@@ -2233,6 +2233,7 @@ nasm > jmp esp
 - `nasm -felf32 sample.asm`   
 - `ld -m elf_i386 sample.o -o sample.out`   
 - `for i in $(objdump -d sample.out |grep "^ " |cut -f2); do echo -n '\x'$i; done; echo`   
+- `python -c "print('\x74\x2b\x43')" > a.out; objdump -D -M intel a.out -b binary -m i386`   
 ```txt
 global _start
 
@@ -2325,6 +2326,19 @@ nasm > inc eax
 00000000  40                inc eax           ; 0x00000001
 nasm > rol eax,8
 00000000  C1C008            rol eax,byte 0x8  ; 0x00000100  2文字分左にローテーションさせる
+```
+```txt
+0x0178f0ff -> 0x0178f000 に変換したい
+
+nasm > shr edi,8
+00000000  C1EF08            shr edi,byte 0x8 ; 0x000178f0 右ビットシフト(左はゼロ埋め)
+nasm > shl edi,8
+00000000  C1E708            shl edi,byte 0x8 ; 0x0178f000 左ビットシフト(右はゼロ埋め)
+-------------------------------------------------------------
+nasm > and edi,0xffffff01
+00000000  81E701FFFFFF      and edi,0xffffff01  ; 下位２バイトを00にするためにANDをとる
+nasm > and edi,0xffffff10
+00000000  81E710FFFFFF      and edi,0xffffff10  ; これでも行けるけど、サイズがかなりでかい。美しくない
 ```
 ##### Egg-Hunter
 Egg hunter using SEH injection   
