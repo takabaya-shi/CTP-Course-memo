@@ -2233,6 +2233,26 @@ conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 #### metasploit
 `/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l 4000`   
 `/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -q 336e4532`   
+```txt
+[1] EIPレジスタに入ってる値からOffsetを求めるときは、そのままの順でよい。
+例) EIP = 41424344
+なら、 -q 41424344 を実行すればよい
+
+[2] スタック上の値を読んでOffsetを求めるときは以下のようにする(SEHなどの場合)。
+例）
+右下のスタック図
++00| 64 63 62 61 | abcd 
++04| 00 00 66 65 | ed..
++08| 44 43 42 41 | ABCD <- この位置のオフセットを知りたい！
++0c| 48 47 46 45 | EFGH
+
+-q ABCD  もしくは、　-q 44434241  もしくは　-q 0x44434241  を実行する！(ASCIIの時は16進数と違って反転する)
+
+この時、左下のメモリダンプはこんな感じ
++00| 61 62 63 64 65 66 00 00 | abcdef.. 
++08| 41 42 43 44 45 46 47 48 | ABCDEFGH
+
+```
 #### nasm
 `/usr/share/metasploit-framework/tools/exploit/nasm_shell.rb `   
 ```txt
