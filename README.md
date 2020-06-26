@@ -210,6 +210,14 @@ set brakepoint
 - `[Alt]+M`   
 メモリの状態を表示   
 一番上を選択した状態で`[Search]`すると上から検索できる。`[Ctrl]+L`で続きを検索。   
+- `[Search for] -> [Commands Sequences]`   
+`[Alt]+M`から右クリックして、`[Dump in CPU]`を選択して、`[CPU]`Windowに任意のアドレスを表示させてから、右クリックで`[Search]`   
+`[Ctrl]+L`で次の検索をする。   
+```txt
+pop r32
+pop r32
+retn
+```
 ### angr
 以下でInstall   
 ```txt
