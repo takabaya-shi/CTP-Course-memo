@@ -1866,6 +1866,33 @@ connect = s.connect((host,port))
 s.send(badheader + baddata)
 s.close()
 ```
+### Unicode shellcoding
+入力された文字列がUnicode形式でメモリに保存される場合、`0x4141`が`0x00410041`となるため通常時のようにはいかない。   
+#### pop,pop,retの検索
+SEHを使用したExploitの場合、`0x0045000e`みたいな感じのアドレス形式の`pop,pop,ret`を探す必要がある。   
+`！mona seh -m AIMP2.dll -cp unicode`   
+なお、NSEHに書き込める4バイト(0x00410041とか)で、JMPできない場合は、SEHのアドレスが命令と解釈されて実行されるが、それがいい感じにNOP(と同等の命令)になればよい。   
+```txt
+|              | (0x100)
+| next_1 (NSEH)| (0x104) <- "0x00650042"で上書き (入力は"\x42\x65"とする) <- pop,pop,ret後ここに帰ってきて実行しようとする
+|handler_1(SEH)| (0x108) <- pop,pop,retのアドレス(0x0045000e)で上書き (入力は"\x0e\x45"とする)
+|              | (0x10c)
+
+右下のスタック図
++100| 00 00 00 00 | .... <- 右側が低いアドレス。ASCII表示するときは反転
++104| 00 65 00 42 | B.e.
++108| 00 45 00 0e | ?.E.
++10c| 00 00 00 00 | ....
+
+左上のCPU命令図 (pop,pop,ret直後)
+42       | INC EDX                    <- これらはすべて正しい命令と解釈され、実質的にNOPと同じ動作をする(無意味な命令)
+0065 00  | ADD BYTE PTR SS:[EBP],AH
+0e       | PUSH CS
+0045 00  | ADD BYTE PTR SS:[EBP],AL
+
+```
+#### short jmpコードの作成
+
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
