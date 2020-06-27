@@ -203,6 +203,8 @@ https://github.com/hugsy/gef
 ### Immunity Debugger
 - `[F7],[F8]`   
 ステップイン、ステップオーバー実行   
+- `[Shift]+[F9]`   
+例外ハンドラ実行直前で一時停止しているときに、さらに実行する。   
 - `[F2]`   
 set brakepoint   
 - `[Alt]+E`   
@@ -2261,6 +2263,15 @@ conn.sendlineafter("ID: ", "A"*40 + rop.chain() )
 +08| 41 42 43 44 45 46 47 48 | ABCDEFGH
 
 ```
+- `msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/alpha_mixed -f raw > calc.bin`   
+- `python /opt/alpha3/ALPHA3.py x86 utf-16 uppercase eax --input="calc.bin"  --verbose`   
+動作は以下の説明と同じ。   
+- `msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/unicode_upper BufferRegister=EAX -f py`   
+シェルコード実行前にEAXにそのシェルコードの先頭アドレスを保存できている場合、`BufferRegister=EAX`を指定する。   
+すると、シェルコードの実行してすぐの処理の、「現在位置をスタック上に保存することでデコーダの場所を特定する」処理が
+必要なくなる！   
+入力がunicodeに変換されるとき、上記のエンコーダーを使える。   
+
 #### nasm
 `/usr/share/metasploit-framework/tools/exploit/nasm_shell.rb `   
 ```txt
@@ -2612,6 +2623,7 @@ arwin.exe user32 MessageBoxA
 ```txt
 !mona modules
 !mona find -s "¥xff¥xe4" -m slmfc.dll
+!mona seh -m AIMP2.dll -cp unicode    # unicode用のアドレス形式のpop,pop,retを見つける (0x0045000eとか)
 ```
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
