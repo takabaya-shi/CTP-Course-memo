@@ -1872,12 +1872,12 @@ s.close()
 ```
 ### Unicode shellcoding
 入力された文字列がUnicode形式でメモリに保存される場合、`0x4141`が`0x00410041`となるため通常時のようにはいかない。   
-0x00~0x7fまでは`0x41->0x0041`と変換されるが、それ以上は必ずしも0x00が付くだけとは限らない！   
-`0x81->0xac20`とか。とくに0x80~0x9fあたりがヤバそう。詳しくは以下を参照   
+`0x00~0x7f`までは`0x41->0x0041`と変換されるが、それ以上は必ずしも0x00が付くだけとは限らない！   
+`0x81->0xac20`とか。とくに`0x80~0x9f`あたりがヤバそう。詳しくは以下を参照   
 https://www.blackhat.com/presentations/win-usa-04/bh-win-04-fx.pdf   
 #### pop,pop,retの検索
 SEHを使用したExploitの場合、`0x0045000e`みたいな感じのアドレス形式の`pop,pop,ret`を探す必要がある。   
-`！mona seh -m AIMP2.dll -cp unicode`   
+`!mona seh -m AIMP2.dll -cp unicode`   
 なお、NSEHに書き込める4バイト(0x00410041とか)で、JMPできない場合は、SEHのアドレスが命令と解釈されて実行されるが、それがいい感じにNOP(と同等の命令)になればよい。   
 ```txt
 |              | (0x100)
