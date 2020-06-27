@@ -80,6 +80,7 @@
   - [Heap](#heap-1)
   - [SEH overflow](#seh-overflow-1)
   - [Egg-Hunting](#egg-hunting)
+  - [Unicode-encoding](#unicode-encoding)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
