@@ -2815,4 +2815,15 @@ https://www.corelan.be/index.php/2010/01/09/exploit-writing-tutorial-part-8-win3
 https://resources.infosecinstitute.com/buffer-overflow-vulnserver/   
 vulnserver.exeのEgg-HuntingのExploitが丁寧に書いてある。   
 
+### Unicode-encoding
+as.ecs.kyoto-u.ac.jp/cas/login?service=https%3A%2F%2Fpanda.ecs.kyoto-u.ac.jp%2Fsakai-login-tool%2Fcontainer   
+超絶親切でわかりやすい。例が二つもある。うち一つは環境が構築できなかった…   
+https://medium.com/@iphelix/corelan-tutorial-7-exercise-solution-8ee8eaedf36f   
+上のExploitの例の別の解説。こっちもわかりやすい。   
+https://github.com/TaQini/alpha3   
+Unicode対応のエンコーダー。   
+https://www.freebuf.com/articles/system/232280.html   
+alpha3の使い方が書いてある。   
+https://www.blackhat.com/presentations/win-usa-04/bh-win-04-fx.pdf   
+ASCIIからUnicodeへの変換テーブル。   
 
