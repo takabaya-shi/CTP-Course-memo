@@ -2834,7 +2834,7 @@ https://resources.infosecinstitute.com/buffer-overflow-vulnserver/
 vulnserver.exeのEgg-HuntingのExploitが丁寧に書いてある。   
 
 ### Unicode-encoding
-as.ecs.kyoto-u.ac.jp/cas/login?service=https%3A%2F%2Fpanda.ecs.kyoto-u.ac.jp%2Fsakai-login-tool%2Fcontainer   
+https://www.corelan.be/index.php/2009/11/06/exploit-writing-tutorial-part-7-unicode-from-0x00410041-to-calc/   
 超絶親切でわかりやすい。例が二つもある。うち一つは環境が構築できなかった…   
 https://medium.com/@iphelix/corelan-tutorial-7-exercise-solution-8ee8eaedf36f   
 上のExploitの例の別の解説。こっちもわかりやすい。   
