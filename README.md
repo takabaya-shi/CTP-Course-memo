@@ -2020,6 +2020,13 @@ int recv(
   int    flags    # 0x00000000にすればよい？？よくわからん
 );
 ```
+`ws2_32.recv`を呼び出しているであろう実行ファイルまたはDLLに、`CPUで右クリック [View] `で移動する。   
+そして、右クリックで`[Search for] -> [All intermodular calls]`で呼び出しの一覧を表示して、`ws2_32.recv`を呼び出す命令のあるアドレスを確認する。(`ws2_32.recv`自体のアドレスではない)   
+![image](https://user-images.githubusercontent.com/56021519/85951768-3c8cfc80-b9a0-11ea-87ee-1901cba98b81.png)   
+そのアドレスに移動して、右クリックで`[Assemble]`で`ws2_32.recv`関数のアドレスを表示する。   
+![image](https://user-images.githubusercontent.com/56021519/85951778-4b73af00-b9a0-11ea-978f-d514dcdc7010.png)   
+ここ(`0x00401953`)にbrakeをセットして実行すると、停止したときのスタックは以下のようになる。   
+![image](https://user-images.githubusercontent.com/56021519/85951818-a86f6500-b9a0-11ea-8b37-ff9bb12235b1.png)   
 
 ## よく見るかたまり
 #### 関数の先頭
