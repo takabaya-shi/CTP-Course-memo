@@ -2128,6 +2128,63 @@ time.sleep(2)
 s.send(buf)
 s.close()
 ```
+### fuzzing (SPIKE)
+#### script
+参考文献   
+https://resources.infosecinstitute.com/intro-to-fuzzing/   
+
+コマンド自体をfuzzingしたいとき以下のようにする。   
+1回目は`COMMAND`を送信するが、次からは`/../AAAAAAAA...`みたいなのをいろいろ送信してくれる。   
+```C
+s_readline(); //print received line from server
+s_string_variable("COMMAND"); // send fuzzed string
+```
+コマンドのパラメータ(引数)でfuzzingしたいとき以下のようにする。   
+```C
+printf("HELP 00help.spk"); // print to terminal command and filename
+
+s_readline(); // print received line from server
+
+s_string("HELP "); // send "HELP" to program
+
+s_string_variable("COMMAND"); // send fuzzed string
+```
+複数のコマンドのパラメータをfuzzingしたいときは、各コマンドごとに`.spk`ファイルを作成しておき、それらを実行するファイルを作成する。   
+```txt
+root@kali:/fuzz/vulnserver# ls
+00help.spk   02rtime.spk  04srun.spk  06gmon.spk  08kstet.spk  trun-fuzz.txt
+01stats.spk  03ltime.spk  05trun.spk  07gdog.spk  fuzzer.pl    vscommand.spk
+```
+```perl
+#!/usr/bin/perl
+# Simple wrapper to run multiple .spk files using generic_send_tcp
+
+$spikese = 'generic_send_tcp';
+
+if ($ARGV[4] eq '') {
+die("Usage: $0 IP_ADDRESS PORT SKIPFILE SKIPVAR SKIPSTR\n\n");
+}
+
+$skipfiles = $ARGV[2];
+
+@files = <*.spk>;
+
+foreach $file (@files) {
+if (! $skipfiles) {
+if (system("$spikese $ARGV[0] $ARGV[1] $file $ARGV[3] $ARGV[4]") ) {
+print "Stopped processing file $file\n";
+exit(0);
+}
+} else {
+$skipfiles--;
+}
+}
+```
+#### wireshark
+- `tcp.port == 9999 and tcp.flags.syn == 1 and ip.dst == 192.168.56.5`   
+- `tcp.port == 9999 and ip.dst == 192.168.56.5`   
+- `[Edit] [Find Packet] [String] [Packet bytes] [Narrow & Wide]`   
+bannerである`Welcome`という文字列を検索して、それが返ってこなくなった時に送信されたfuzzdataからいつの入力で落ちたのか特定できる。   
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
@@ -2981,4 +3038,19 @@ https://www.freebuf.com/articles/system/232280.html
 alpha3の使い方が書いてある。   
 https://www.blackhat.com/presentations/win-usa-04/bh-win-04-fx.pdf   
 ASCIIからUnicodeへの変換テーブル。   
+
+### staged-shellcoding
+https://werebug.com/exploit/vulnserver/2019/11/19/vulnserver-kstet-exploit-with-staged-payload-using-ws2-32-recv.html   
+vulnerver.exeのstaged-shellcodingの解説。わかりやすい。   
+https://deceiveyour.team/2018/10/15/vulnserver-kstet-ws2_32-recv-function-re-use/   
+vulnerver.exeのstaged-shellcodingの解説。わかりやすい。   
+
+### fuzzing (SPIKE)
+https://resources.infosecinstitute.com/intro-to-fuzzing/   
+めちゃくちゃ丁寧に書いてある。結構詳しい。Part1.   
+https://resources.infosecinstitute.com/fuzzer-automation-with-spike/   
+Part2。vulnserver.exeのautofuzzについて書かれている。   
+https://null-byte.wonderhowto.com/how-to/hack-like-pro-build-your-own-exploits-part-3-fuzzing-with-spike-find-overflows-0162789/   
+同じ内容の違う説明。   
+
 
