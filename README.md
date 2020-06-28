@@ -225,6 +225,20 @@ pop r32
 pop r32
 retn
 ```
+- `CPUで右クリック [View] `   
+モジュール一覧が見れる   
+- `[Search for] -> [All intermodular calls]`   
+モジュール間呼び出しを検索(ws2_32.recvなど)   
+- `CPUで[space]`   
+命令を編集できる。   
+- `CPUで右クリック [Assemble]`
+`call <JMP.&WS2_32.recv>`   
+みたいに書かれている命令は、右クリックして`[Assemble]`で   
+`call 0040252c`   
+みたいに表示しなおせる   
+- `Windowで右クリック[Search for] -> [Binary String]`   
+文字列の探索。   
+
 ### angr
 以下でInstall   
 ```txt
@@ -1991,6 +2005,21 @@ align += "\xb9\x7e\xaa\xed\xec\x6d\xb9\x03\xaa\xec\x6d"
 必要なくなる！   
 入力がunicodeに変換されるとき、上記のエンコーダーを使える。   
 動作検証済み(calc.exeが起動したのを見た)   
+
+### staged-shellcoding
+自由に使えるバッファが66バイトくらいしかない場合でも、`ws2_32.recv`関数を呼びだして追加のpayloadを任意のアドレスに挿入して実行することができる。   
+`ws2_32.recv`に必要なサイズは25バイト前後くらい？   
+```txt
+ws2_32.recv関数を実行する直前にスタックを以下のようにしておく！
+
+int recv(
+  SOCKET s,       # socket file descriptor
+  char   *buf,    # 受信したデータを格納するアドレス
+  int    len,     # 格納するバッファのサイズ
+  int    flags    # 0x00000000にすればよい？？よくわからん
+);
+```
+
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
