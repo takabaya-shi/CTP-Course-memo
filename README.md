@@ -2140,6 +2140,8 @@ https://resources.infosecinstitute.com/intro-to-fuzzing/
 
 コマンド自体をfuzzingしたいとき以下のようにする。   
 1回目は`COMMAND`を送信するが、次からは`/../AAAAAAAA...`みたいなのをいろいろ送信してくれる。   
+`generic_send_tcp 192.168.56.6 9999 vscommand.spk 0 0`   
+で実行する。   
 ```C
 s_readline(); //print received line from server
 s_string_variable("COMMAND"); // send fuzzed string
@@ -2160,6 +2162,8 @@ root@kali:/fuzz/vulnserver# ls
 00help.spk   02rtime.spk  04srun.spk  06gmon.spk  08kstet.spk  trun-fuzz.txt
 01stats.spk  03ltime.spk  05trun.spk  07gdog.spk  fuzzer.pl    vscommand.spk
 ```
+`perl fuzzer.pl 192.168.56.6 9999 8 0 0`   
+で実行する。一つ目の8は`08kstet.spk`以降の`.spk`ファイルを実行するということ。(`00~07`を省略)   
 ```perl
 #!/usr/bin/perl
 # Simple wrapper to run multiple .spk files using generic_send_tcp
