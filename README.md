@@ -237,7 +237,7 @@ retn
 モジュール間呼び出しを検索(ws2_32.recvなど)   
 - `CPUで[space]`   
 命令を編集できる。   
-- `CPUで右クリック [Assemble]`
+- `CPUで右クリック [Assemble]`   
 `call <JMP.&WS2_32.recv>`   
 みたいに書かれている命令は、右クリックして`[Assemble]`で   
 `call 0040252c`   
