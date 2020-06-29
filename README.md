@@ -2956,6 +2956,32 @@ arwin.exe user32 MessageBoxA
 !mona find -s "¥xff¥xe4" -m slmfc.dll
 !mona seh -m AIMP2.dll -cp unicode    # unicode用のアドレス形式のpop,pop,retを見つける (0x0045000eとか)
 ```
+#### PE-fileformat
+PEViewで見るとこんな感じ。   
+![image](https://user-images.githubusercontent.com/56021519/86029068-a7583980-ba6d-11ea-999e-c5bd7c64f317.png)   
+LordPEで見るとこんな感じ。   
+![image](https://user-images.githubusercontent.com/56021519/86028868-68c27f00-ba6d-11ea-8463-2e2e4f868146.png)   
+RVAはVoffsetと同じこと。ローダーにロードされるときに配置される実際の相対アドレスを表す。   
+Pointer to Raw DataはRoffsetと同じことで、ロードされる前のPEファイルの実際のアドレスを表す。   
+Size of Raw DataはRsizeのことで、ロードされる前のPEファイルの実際のそのセクションのサイズ。    
+Virtual SizeはVSizeと同じで、ロード後にそのセクションに割り振られるアドレスのサイズ。   
+つまり、例えば.dataセクションに`A*0x100`のデータしかなくてSize of Raw Dataが0x100の時、Virtual Sizeを0x1000としてロードすると、`A*0x100`のデータと残りの0xf00の0x00埋めされたデータをの合計0x1000サイズが確保される。   
+##### 新しいセクションの作成
+LordPEで右クリックでセクションを追加して、`.NewSec,.1111`を追加する。   
+`.Newsec`はCertification Tableの分のデータ分に配置しておく。こうしないと、`putty.exe`の後半に文字列を追加しても配置されるときにそこまで読み込まずに、手前にあるCertification Tableを読み込んでしまう。   
+Certification Tableは通常時にはローダーには読み込まれない！   
+![image](https://user-images.githubusercontent.com/56021519/86029171-c951bc00-ba6d-11ea-8df2-168bf1e1efc5.png)   
+`.Newsec`でCertification Tableの分のデータ分に配置して、本当に配置したいデータはそのあとの`.1111`セクションで配置することにする。そのために`.NewSec`のRsizeを調整する。   
+これで、`.1111`セクションが0x0010BA00から開始されるようになり、AAAA...を`.1111`セクションに配置できるようになる。   
+![image](https://user-images.githubusercontent.com/56021519/86029715-7af0ed00-ba6e-11ea-8af4-78b15f06581c.png)   
+putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一覧表示すると以下のようになる。   
+
+![image](https://user-images.githubusercontent.com/56021519/86029539-3ebd8c80-ba6e-11ea-9e5a-8f27b88d5958.png)   
+`.1111`セクションで`A*0x100+B*0x100`の合計0x200バイトと残りの0x00埋めの0xe00バイトが配置されている。   
+これは、RSize0x100,VSize0x1000としたため、不足分は0x00埋めされたためである。   
+0x100バイト分は追加されているが、なんでだ？？よくわからん。   
+![image](https://user-images.githubusercontent.com/56021519/86029983-d7eca300-ba6e-11ea-9641-4bc7fa5e6e7f.png)   
+
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
 `[Ctrl]+x`で保存   
