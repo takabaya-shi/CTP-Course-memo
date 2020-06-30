@@ -3007,6 +3007,31 @@ putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一
 
 ```
 ちなみに、`0x0ab18e`の相対オフセットはロード後に有効であり、ロード前のPEfileでは何の意味も持たない無効なオフセットであることに注意。   
+#### ベース再配置情報
+上記のように、想定していたImageBase(0x400000)が使われなかった場合、普通はRVA(相対オフセット)でアドレスを記述しているので、単に(ImageBase+RVA)でたとえImageBaseが想定のものでなくてもアドレスが計算できる。   
+
+しかし、プログラム上でアドレスを指定した場合、そのアドレスはRVAで表現されず、想定していたImageBaseが足されたアドレスで表現される。   
+例えば上記の例のように、本来は`0xab18e`として、`0xab18e + ImageBase`とすればいいところを、`0x4ab18e(0xab18e + 0x400000)`となっているため、`0x013eb18e = (0x4ab18e - 0x400000) + 0x1340000`という計算をしなければいけなくなっていた。   
+
+このように再計算しなければいけないデータは、`.reloc`セクションの`IMAGE_BASE_RELOCATION`にオフセットが一覧で格納されている。   
+![image](https://user-images.githubusercontent.com/56021519/86111566-de782a80-bb01-11ea-8224-094b8547a999.png)   
+![image](https://user-images.githubusercontent.com/56021519/86111719-11222300-bb02-11ea-9ae6-2aa564cbab10.png)   
+例えば、以下の例の時を考えるとその通りになっていることがわかる。   
+```txt
+>>> IB = 0x1170000        # 実際のImageBase
+>>> s1_addr = 0x011925b7  # 下線のあるpush命令。pushするアドレスに下線があり、再配置情報を表す
+>>> s2_addr = 0x01192604　# 下線のあるpush命令。pushするアドレスに下線があり、再配置情報を表す
+>>> s3_addr = 0x0119261a　# 下線のあるpush命令。pushするアドレスに下線があり、再配置情報を表す
+>>> hex(s1_addr - IB)　   # push命令からImageBaseを引いたもの。これに1を足すとpushするアドレスのオフセットになる
+'0x225b7'                 # これはIMAGE_BASE_RELOCATIONの000225b8と対応している
+>>> hex(s2_addr - IB)
+'0x22604'                 # これはIMAGE_BASE_RELOCATIONの00022605と対応している
+>>> hex(s3_addr - IB)
+'0x2261a'                 # これはIMAGE_BASE_RELOCATIONの0002261bと対応している
+```
+![image](https://user-images.githubusercontent.com/56021519/86111759-1da67b80-bb02-11ea-8132-e8b0afbd6e1d.png)   
+![image](https://user-images.githubusercontent.com/56021519/86112321-c8b73500-bb02-11ea-89a6-e5b310bf29c4.png)   
+
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
 `[Ctrl]+x`で保存   
