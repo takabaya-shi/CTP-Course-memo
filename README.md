@@ -92,6 +92,7 @@
   - [Unicode-encoding](#unicode-encoding)
   - [staged-shellcoding](#staged-shellcoding-1)
   - [fuzzing (SPIKE)](#fuzzing-spike-1)
+  - [PE-fileformat](#pe-fileformat-1)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
