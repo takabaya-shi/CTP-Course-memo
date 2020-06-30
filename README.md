@@ -2987,7 +2987,7 @@ putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一
 0x100バイト分は追加されているが、なんでだ？？よくわからん。   
 ![image](https://user-images.githubusercontent.com/56021519/86029983-d7eca300-ba6e-11ea-9641-4bc7fa5e6e7f.png)   
 
-#### 文字列参照
+##### 文字列参照
 `.text`セクションで、`.rdata`セクションの文字列に参照するとき、以下のようになる。   
 ```txt
 688eb14a00    push 0x4ab18e    ASCII "login as: "
@@ -3009,7 +3009,7 @@ putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一
 
 ```
 ちなみに、`0x0ab18e`の相対オフセットはロード後に有効であり、ロード前のPEfileでは何の意味も持たない無効なオフセットであることに注意。   
-#### ベース再配置情報
+##### ベース再配置情報
 上記のように、想定していたImageBase(0x400000)が使われなかった場合、普通はRVA(相対オフセット)でアドレスを記述しているので、単に(ImageBase+RVA)でたとえImageBaseが想定のものでなくてもアドレスが計算できる。   
 
 しかし、プログラム上でアドレスを指定した場合、そのアドレスはRVAで表現されず、想定していたImageBaseが足されたアドレスで表現される。   
