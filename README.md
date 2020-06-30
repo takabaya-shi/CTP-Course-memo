@@ -81,6 +81,7 @@
     - [Windows周り](#windows%E5%91%A8%E3%82%8A)
     - [PE-fileformat](#pe-fileformat)
       - [新しいセクションの作成](#%E6%96%B0%E3%81%97%E3%81%84%E3%82%BB%E3%82%AF%E3%82%B7%E3%83%A7%E3%83%B3%E3%81%AE%E4%BD%9C%E6%88%90)
+    - [文字列参照](#%E6%96%87%E5%AD%97%E5%88%97%E5%8F%82%E7%85%A7)
     - [alarmのbypass](#alarm%E3%81%AEbypass)
     - [Cの関数](#c%E3%81%AE%E9%96%A2%E6%95%B0)
 - [参考文献](#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE)
