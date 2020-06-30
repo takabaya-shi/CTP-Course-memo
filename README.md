@@ -2984,6 +2984,25 @@ putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一
 0x100バイト分は追加されているが、なんでだ？？よくわからん。   
 ![image](https://user-images.githubusercontent.com/56021519/86029983-d7eca300-ba6e-11ea-9641-4bc7fa5e6e7f.png)   
 
+#### 文字列参照
+`.text`セクションで、`.rdata`セクションの文字列に参照するとき、以下のようになる。   
+```txt
+688eb14a00    push 0x4ab18e    ASCII "login as: "
+```
+![image](https://user-images.githubusercontent.com/56021519/86098831-a2d56480-baf1-11ea-8fc0-6b09c630e01c.png)   
+この命令をロード後にImmunity Debuggerで確認すると、以下のようにアドレスが`0x4ab18e -> 0x013EB18E`に変換されている。   
+![image](https://user-images.githubusercontent.com/56021519/86098923-be406f80-baf1-11ea-9e75-a96c2db4583b.png)   
+これは、ImageBaseを考慮して再配置した結果である。   
+`0x4ab18e`というアドレスは、デフォルトのEXEファイルのImageBaseである`0x400000`を前提としたアドレスである。つまり、Offsetは`0x0ab18e`であり、それにImageBaseの`0x400000`が加算されて、ロード後にこの文字列は`0x4ab18e`に配置されることになる、ということを前提としている。   
+しかし、実際はASLRが有効であり、必ずしもImageBaseの`0x400000`に配置されるわけではない(というか、0x40000には配置されないはず)。今回の場合は、ASLRが有効なため`0x400000`ではなく`0x1340000`がImageBaseとなっている。   
+![image](https://user-images.githubusercontent.com/56021519/86099593-aae1d400-baf2-11ea-8b8e-28e2e08ce7be.png)
+そのため、想定していた`0x400000`ではないため、その分のずれを修正する必要がある。   
+```txt
+実際に配置されるアドレス = (PEfileに書かれているアドレス - PEfileに書かれているImageBase) + 実際のImageBase
+0x013eb18e = (0x4ab18e - 0x400000) + 0x1340000
+
+```
+ちなみに、`0x0ab18e`の相対オフセットはロード後に有効であり、ロード前のPEfileでは何の意味も持たない無効なオフセットであることに注意。   
 #### alarmのbypass
 `hexedit`でバイナリを書き換える。   
 `[Ctrl]+x`で保存   
