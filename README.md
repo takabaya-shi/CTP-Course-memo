@@ -3139,4 +3139,17 @@ Part2。vulnserver.exeのautofuzzについて書かれている。
 https://null-byte.wonderhowto.com/how-to/hack-like-pro-build-your-own-exploits-part-3-fuzzing-with-spike-find-overflows-0162789/   
 同じ内容の違う説明。   
 
+### PE-fileformat
+https://pentest.blog/art-of-anti-detection-2-pe-backdoor-manufacturing/   
+putty.exeにバックドアを仕込む手順が書いてある。   
+https://idafchev.github.io/exploit/2017/09/26/writing_windows_shellcode.html   
+図があってわかりやすい。   
+http://sector876.blogspot.com/2013/03/backdooring-pe-files-part-2.html   
+これもバックドアを仕込む手順が書いてある。   
+https://blog.kowalczyk.info/articles/pefileformat.html   
+PEの説明。   
+https://tech-zealots.com/malware-analysis/pe-portable-executable-structure-malware-analysis-part-2/   
+PEの説明。   
+http://hp.vector.co.jp/authors/VA050396/tech_11.html   
+再配置情報について書いてある。   
 
