@@ -2994,9 +2994,12 @@ putty.exeを起動して、Immunity DebuggerでAttachしてモジュールを一
 この命令をロード後にImmunity Debuggerで確認すると、以下のようにアドレスが`0x4ab18e -> 0x013EB18E`に変換されている。   
 ![image](https://user-images.githubusercontent.com/56021519/86098923-be406f80-baf1-11ea-9e75-a96c2db4583b.png)   
 これは、ImageBaseを考慮して再配置した結果である。   
+
 `0x4ab18e`というアドレスは、デフォルトのEXEファイルのImageBaseである`0x400000`を前提としたアドレスである。つまり、Offsetは`0x0ab18e`であり、それにImageBaseの`0x400000`が加算されて、ロード後にこの文字列は`0x4ab18e`に配置されることになる、ということを前提としている。   
-しかし、実際はASLRが有効であり、必ずしもImageBaseの`0x400000`に配置されるわけではない(というか、0x40000には配置されないはず)。今回の場合は、ASLRが有効なため`0x400000`ではなく`0x1340000`がImageBaseとなっている。   
-![image](https://user-images.githubusercontent.com/56021519/86099593-aae1d400-baf2-11ea-8b8e-28e2e08ce7be.png)
+
+しかし、実際はASLRが有効であり、必ずしもImageBaseの`0x400000`に配置されるわけではない(というか、0x40000には配置されないはず)。   
+今回の場合は、ASLRが有効なため`0x400000`ではなく`0x1340000`がImageBaseとなっている。   
+![image](https://user-images.githubusercontent.com/56021519/86099593-aae1d400-baf2-11ea-8b8e-28e2e08ce7be.png)   
 そのため、想定していた`0x400000`ではないため、その分のずれを修正する必要がある。   
 ```txt
 実際に配置されるアドレス = (PEfileに書かれているアドレス - PEfileに書かれているImageBase) + 実際のImageBase
