@@ -57,6 +57,8 @@
   - [fuzzing (SPIKE)](#fuzzing-spike)
     - [基本](#%E5%9F%BA%E6%9C%AC)
     - [ソケット通信時のパケット](#%E3%82%BD%E3%82%B1%E3%83%83%E3%83%88%E9%80%9A%E4%BF%A1%E6%99%82%E3%81%AE%E3%83%91%E3%82%B1%E3%83%83%E3%83%88)
+    - [generic_send_tcp](#generic_send_tcp)
+    - [generic_web_server_fuzz2](#generic_web_server_fuzz2)
     - [wireshark](#wireshark)
 - [よく見るかたまり](#%E3%82%88%E3%81%8F%E8%A6%8B%E3%82%8B%E3%81%8B%E3%81%9F%E3%81%BE%E3%82%8A)
     - [関数の先頭](#%E9%96%A2%E6%95%B0%E3%81%AE%E5%85%88%E9%A0%AD)
