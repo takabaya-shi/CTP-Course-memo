@@ -3293,6 +3293,10 @@ https://resources.infosecinstitute.com/fuzzer-automation-with-spike/
 Part2。vulnserver.exeのautofuzzについて書かれている。   
 https://null-byte.wonderhowto.com/how-to/hack-like-pro-build-your-own-exploits-part-3-fuzzing-with-spike-find-overflows-0162789/   
 同じ内容の違う説明。   
+https://tekwizz123.blogspot.com/2014/10/finding-new-vulns-with-fuzzing-and.html   
+kolibri httpserverのファジングの説明とかがかなり丁寧に書いてある。   
+https://github.com/guilhermeferreira/spikepp/tree/master/SPIKE/src   
+SPIKEのソースコード。   
 
 ### PE-fileformat
 https://pentest.blog/art-of-anti-detection-2-pe-backdoor-manufacturing/   
