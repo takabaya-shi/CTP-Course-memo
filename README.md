@@ -82,6 +82,8 @@
       - [bypass NULLbyte](#bypass-nullbyte)
       - [Egg-Hunter](#egg-hunter)
     - [Windows周り](#windows%E5%91%A8%E3%82%8A)
+      - [arwin](#arwin)
+      - [mona](#mona)
     - [PE-fileformat](#pe-fileformat)
       - [新しいセクションの作成](#%E6%96%B0%E3%81%97%E3%81%84%E3%82%BB%E3%82%AF%E3%82%B7%E3%83%A7%E3%83%B3%E3%81%AE%E4%BD%9C%E6%88%90)
       - [文字列参照](#%E6%96%87%E5%AD%97%E5%88%97%E5%8F%82%E7%85%A7)
