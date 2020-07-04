@@ -2283,6 +2283,44 @@ client                server
     |   ===========>    |   clientからserverに接続強制終了
     |     RST ACK       |  
 ```
+#### generic_send_tcp
+generic_send_tcpを使うと、通信するごとに切断する。   
+```C
+s_string("HOST ");
+s_string_variable("192.168.1.108");
+s_string("\r\n");
+
+s_read_packet();
+sleep(1);
+s_read_packet();
+```
+上記をFTPserverに対して実行すると以下のようになった。   
+![image](https://user-images.githubusercontent.com/56021519/86508733-61102b00-be1d-11ea-910c-bf29e24524f2.png)   
+ここで大事なのは、Server側がACKをちゃんと返している点である。   
+(8) 短い入力に対しては`Response`で応答している。   
+(10) そしてACKが返ってきたのでSPIKE側からRSTを送信して通信切断   
+
+(17) 長い入力に対しては、ACKで応答している。   
+(18) その長い入力をServer側で処理する際に異常を検知して、今度はServer側からRSTを送信して通信切断   
+
+また、`sleep(1)`が入る場所が、bannerを取得してから`Request`を送信するまでの間であることも注意！！一定時間接続がないと異常と判断するようなアプリ(kolibri httpserverがそうだった)ではスリープする長さが重要！   
+
+一方、以下のようなスクリプトを使用するとなぜかSPIKE側が変な動作をする。(ソースコードを読んだりしたが原因はわからなかった)   
+```C
+s_string("HOST ");
+s_string_variable("192.168.1.108");
+s_string("\r\n");
+
+sleep(1);
+```
+![image](https://user-images.githubusercontent.com/56021519/86508881-8c474a00-be1e-11ea-979d-9ae0fb7ab6ee.png)   
+(23) `Request`を送信するとこまでは同じ。おそらく送信する内容も同じ   
+(24) しかし、送信した後すぐにSPIKEがRSTを送信して通信を切断している！これによって、仮にCrashを引き起こす入力が送信されており、Server側のソケット通信の受信バッファに格納されていても、RSTが来ることでアプリケーションに渡す前に破棄してしまう！！   
+Wiresharkを見る限り、パケットが来ているように見えるのにクラッシュしない原因はおそらくこれ！！   
+#### generic_web_server_fuzz2
+generic_web_server_fuzz2はgeneric_web_server_fuzzの上位互換っぽい(ソースコードを見る限り)ので２の方を使った方がよさそう。   
+https://github.com/guilhermeferreira/spikepp/tree/master/SPIKE/src   
+
 #### wireshark
 - `tcp.port == 9999 and tcp.flags.syn == 1 and ip.dst == 192.168.56.5`   
 - `tcp.port == 9999 and ip.dst == 192.168.56.5`   
