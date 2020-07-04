@@ -231,6 +231,8 @@ set brakepoint
 - `[Alt]+M`   
 メモリの状態を表示   
 一番上を選択した状態で`[Search]`すると上から検索できる。`[Ctrl]+L`で続きを検索。   
+- `[Alt]+L`   
+log Windowを表示。monaを実行したときとかに見る。   
 - `[Search for] -> [Commands Sequences]`   
 `[Alt]+M`から右クリックして、`[Dump in CPU]`を選択して、`[CPU]`Windowに任意のアドレスを表示させてから、右クリックで`[Search]`   
 `[Ctrl]+L`で次の検索をする。   
@@ -3101,6 +3103,7 @@ vulnserver.exeで動作したOmlet-Hunterは以下。
 SEH Omlet shellcodeは以下からダウンロードできる。   
 https://code.google.com/archive/p/w32-seh-omelet-shellcode/downloads   
 #### Windows周り
+##### arwin
 - `arwin`   
 ```txt
 arwin.exe kernel32 CreateProcessA
@@ -3109,11 +3112,51 @@ arwin.exe ws2_32 connect
 arwin.exe kernel32.dll WinExec
 arwin.exe user32 MessageBoxA
 ```
-- `mona`   
+##### mona
+https://www.corelan.be/index.php/2011/07/14/mona-py-the-manual/   
+詳しい説明はここにある！以下をよく使う気がする。   
 ```txt
 !mona modules
 !mona find -s "¥xff¥xe4" -m slmfc.dll
 !mona seh -m AIMP2.dll -cp unicode    # unicode用のアドレス形式のpop,pop,retを見つける (0x0045000eとか)
+!mona jmp -r esp
+  -x X無しでも実行可能な命令だけを検索している
+    - Number of pointers of type 'jmp esp' : 34
+    - Number of pointers of type 'call esp' : 11
+    - Number of pointers of type 'push esp # ret ' : 17
+  として同等の命令も探してくれる！！
+!mona egg -t w00t
+  NtAccessCheck (AndAuditAlarm)のEgghunterを生成してくれる
+!mona config -set workingfolder C:\logs\%p
+  ファイルを生成するディレクトリを指定。%pでプロセス名のフォルダを作成してくれる。ファイルは上書きされる
+!mona bytearray -b "\x00"
+  baccharsを見つけるために0x00~9xffまでを生成する。.binと.txtが生成される
+!mona compare -f bytearray.bin
+　メモリ内に指定したファイルの内容があるかどうか調べる。badcharsの時に超便利！
+!mona find -type asc -s "AAAA"
+  メモリ内に文字列があるか検索する。便利
+!mona stackpivot -distance 4,4
+  スタックにEIPを移すような命令を列挙してくれる。distanceはよくわかってない…
+!mona find -type instr -s "jmp ecx" -p2p 
+  "jmp ecx"のポインタへのポインタを列挙する。(jmpのアドレスが値として存在するアドレスを列挙してくれる)
+  0x77f953e4 : ptr to 0x7ce98007 (-> ptr to "jmp ecx")
+!mona find -type instr -s "jmp esp" -x X
+  Xで実行可能な命令を検索する。これがないと＊で検索してすごい量になる
+  同等の命令は探してはくれない
+!mona getpc -r eax
+  eaxに現在のスタック上のアドレスを代入する一連の処理をいくつか挙げてくれる。デコード時に便利
+  eax|  jmp short back:
+  "\xeb\x03\x58\xff\xd0\xe8\xf8\xff\xff\xff"
+  eax|  call + 4:
+  "\xe8\xff\xff\xff\xff\xc3\x58"
+  eax|  fstenv:
+  "\xd9\xeb\x9b\xd9\x74\x24\xf4\x58"
+  
+   0:	eb 03                	jmp    0x5　; [1] objdumpではjmp 0x5は左の5:の番号に相対ジャンプすることを指す
+   2:	58                   	pop    eax  ; [3] call時にスタックに保存したcall 0x2の次のアドレスをeaxに代入
+   3:	ff d0                	call   eax  ; [4] call 0x2の次の命令に復帰。EAXにはその命令のアドレスがあり目標達成
+   5:	e8 f8 ff ff ff       	call   0x2　; [2] 2:の処理(pop eax)にjmp。命令自体はcall $-0x3
+
 ```
 #### PE-fileformat
 PEViewで見るとこんな感じ。   
