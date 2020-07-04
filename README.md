@@ -2213,14 +2213,18 @@ s.recv(1024) # recv banner
 s.send(baddata + "\r\n")
 s.close()
 ```
-connectまでを実行すると以下のようになる(connectも実行する)   
+まず最初に、   
+```python
+connect = s.connect((host,port))
+```
+までを実行すると以下のようになる(connectも実行する)   
 ここで、TCP 3way-handshakeとbannerをserverから取得していることが確認できる！   
 ![image](https://user-images.githubusercontent.com/56021519/86508092-412a3880-be18-11ea-9824-ef5cd6373281.png)   
 ```txt
 Seq = 受信したACKの番号
 ACK = 受信したSeq + 受信したデータサイス
 
-client 
+client                server
     |    Seq=0          |
     |   ===========>    |   clientからserverに接続を開始
     |       SYN         |   cli「接続始めるよ。届いた？」
@@ -2241,6 +2245,43 @@ client
     |   ============>   |   Seq = 受信したACK(=1)
     |       ACK         |   cli「banner受け取ったよ」
     |                   |
+```
+つぎに、   
+```python
+s.recv(1024) # recv banner
+s.send(baddata + "\r\n")
+```
+までを実行する。recv()はclientにあるソケット通信の受信バッファからデータを取り出すだけなので、パケットは関係ない。   
+![image](https://user-images.githubusercontent.com/56021519/86508429-fd84fe00-be1a-11ea-9ef6-1e939494d25e.png)   
+```txt
+Seq = 受信したACKの番号
+ACK = 受信したSeq + 受信したデータサイス
+
+client                server
+    |   Seq=1,ACK=43    |
+    |   ===========>    |   send("A")
+    |    Request(3)     |   "A"に改行文字\r\n("\x0a\x0d")を足して3バイトを送信 
+    |                   |    
+    |   Seq=43,Ack=4    |   
+    |   <===========    |   ACKとしてResponseデータヲ返信   
+    |   Response(33)    |   "Command A not found"的なやつ
+    |                   |
+    |   Seq=4,ACK=76    |   ACK(76) = 受信したSeq(43)+受信したデータ(33)
+    |   ===========>    |    
+    |        ACK        |    
+    |                   |
+```
+最後に、
+```python
+s.close()
+```
+通信をRSTで終了する。   
+![image](https://user-images.githubusercontent.com/56021519/86508605-52754400-be1c-11ea-8154-4cb779fc15ad.png)   
+```txt
+client                server
+    |    Seq=4,ACK=7    |
+    |   ===========>    |   clientからserverに接続強制終了
+    |     RST ACK       |  
 ```
 #### wireshark
 - `tcp.port == 9999 and tcp.flags.syn == 1 and ip.dst == 192.168.56.5`   
