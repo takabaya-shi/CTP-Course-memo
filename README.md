@@ -2281,7 +2281,7 @@ s.close()
 ![image](https://user-images.githubusercontent.com/56021519/86508605-52754400-be1c-11ea-8154-4cb779fc15ad.png)   
 ```txt
 client                server
-    |    Seq=4,ACK=7    |
+    |    Seq=4,ACK=76   |
     |   ===========>    |   clientからserverに接続強制終了
     |     RST ACK       |  
 ```
@@ -2344,6 +2344,7 @@ s_read_packet();
 ```
 以下の通り、リクエストごとに通信を切断していない。`s_read_packet();`でちゃんと表示できることもあるけどできないこともあるっぽい？   
 ![image](https://user-images.githubusercontent.com/56021519/86509122-abdf7200-be20-11ea-9fed-961b3d2261c2.png)   
+generic_send_tcpの時と同様、異常な入力をするとServer側のデータの処理時に異常を検知してSPIKEに対してRSTを送信して通信を切断する。generic_web_server_fuzz2の場合はSPIKEから自発的にRSTを送信して切断することはなさそう。   
 
 #### wireshark
 - `tcp.port == 9999 and tcp.flags.syn == 1 and ip.dst == 192.168.56.5`   
