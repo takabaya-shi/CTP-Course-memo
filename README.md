@@ -2139,7 +2139,7 @@ s.send(buf)
 s.close()
 ```
 ### fuzzing (SPIKE)
-#### script
+#### 基本
 参考文献   
 https://resources.infosecinstitute.com/intro-to-fuzzing/   
 
@@ -2193,6 +2193,53 @@ exit(0);
 $skipfiles--;
 }
 }
+```
+#### ソケット通信時のパケット
+ftp serverに以下のスクリプトで通信する際のパケットの様子を理解する。正常時のモノと比較することでデバッグする。   
+```python
+import sys
+import socket
+host = "192.168.56.38"
+port = 21
+
+baddata = "A"
+
+print("Sending payload....")
+s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+connect = s.connect((host,port))
+
+s.recv(1024) # recv banner
+s.send(baddata + "\r\n")
+s.close()
+```
+connectまでを実行すると以下のようになる(connectも実行する)   
+ここで、TCP 3way-handshakeとbannerをserverから取得していることが確認できる！   
+![image](https://user-images.githubusercontent.com/56021519/86508092-412a3880-be18-11ea-9824-ef5cd6373281.png)   
+```txt
+Seq = 受信したACKの番号
+ACK = 受信したSeq + 受信したデータサイス
+
+client 
+    |    Seq=0          |
+    |   ===========>    |   clientからserverに接続を開始
+    |       SYN         |   cli「接続始めるよ。届いた？」
+    |                   |    
+    |    Seq=0,Ack=1    |   
+    |   <===========    |   server「届いたよ。届いた？」
+    |     SYN ACK       |
+    |                   |
+    |    Seq=1,ACK=1    |
+    |   ===========>    |   3way-handshake終了。
+    |        ACK        |   cli「届いたよ。」
+    |                   |
+    |    Seq=1,ACK=1    |
+    |   <===========    |   FTPServerのbannerを送信
+    |   Response(42)    |   42バイトのデータを返信
+    |                   |
+    |    Seq=1,ACK=43   |   ACK = 1 + 42
+    |   ============>   |   Seq = 受信したACK(=1)
+    |       ACK         |   cli「banner受け取ったよ」
+    |                   |
 ```
 #### wireshark
 - `tcp.port == 9999 and tcp.flags.syn == 1 and ip.dst == 192.168.56.5`   
