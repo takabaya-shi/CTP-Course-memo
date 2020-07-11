@@ -81,6 +81,7 @@
     - [nasm](#nasm)
       - [bypass NULLbyte](#bypass-nullbyte)
       - [Egg-Hunter](#egg-hunter)
+      - [Omlet-Hunter](#omlet-hunter)
     - [Windows周り](#windows%E5%91%A8%E3%82%8A)
       - [arwin](#arwin)
       - [mona](#mona)
