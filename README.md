@@ -3187,7 +3187,8 @@ xor ebx,ebx
 mov bl,6
 push ebx        ; Protocol IPPROTO_TCP 6
 ```
-##### bypass NULLbyte
+##### bypass badcharacters
+###### NULL bytes
 ```txt
 nasm > mov eax,0x0
 00000000  B800000000        mov eax,0x0   ; ダメ
@@ -3266,6 +3267,43 @@ nasm > and edi,0xffffff01
 00000000  81E701FFFFFF      and edi,0xffffff01  ; 下位２バイトを00にするためにANDをとる
 nasm > and edi,0xffffff10
 00000000  81E710FFFFFF      and edi,0xffffff10  ; これでも行けるけど、サイズがかなりでかい。美しくない
+```
+###### above 0x7f
+```txt
+nasm > add esp,0x32
+00000000  83C432            add esp,byte +0x32   ; 0xc4が使えない
+-------------------------------------------------------------
+nasm > popad
+00000000  61                popa        ; popadで32バイト分をpopすることでesp+32することができる！
+```
+##### short jmp
+`0x21~0x7f`しか使えず、以下が使えないときは   
+```txt
+nasm > jmp esp
+00000000  FFE4              jmp esp
+nasm > jmp eax
+00000000  FFE0              jmp eax
+nasm > call eax
+00000000  FFD0              call eax
+nasm > push esp
+00000000  54                push esp
+nasm > ret
+00000000  C3                ret
+```
+`jae`とかのフラグの状態を伴う系の命令で代用できる！jmpする前のフラグレジスタの状態から使えそうなのを選ぶ。   
+ここにもっとまとまっている表がある。   
+https://www.corelan.be/index.php/2009/07/23/writing-buffer-overflow-exploits-a-quick-and-basic-tutorial-part-2/   
+```txt
+nasm > jae $+0x1
+00000000  73FF              jnc 0x1
+nasm > jne $+0x1
+00000000  75FF              jnz 0x1
+nasm > jnz $+0x1
+00000000  75FF              jnz 0x1
+nasm > jz $+0x1
+00000000  74FF              jz 0x1
+nasm > je $+0x1
+00000000  74FF              jz 0x1
 ```
 #### Windows周り
 ##### arwin
