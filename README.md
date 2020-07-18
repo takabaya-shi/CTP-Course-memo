@@ -65,7 +65,7 @@
   - [Alpha shellcode](#alpha-shellcode)
     - [GetPC](#getpc)
     - [encode with sub eaxs](#encode-with-sub-eaxs)
-    - [set EIP=REGISTER](#set-eipregister)
+    - [set EIP==REGISTER](#set-eipregister)
     - [Egghunter](#egghunter)
 - [よく見るかたまり](#%E3%82%88%E3%81%8F%E8%A6%8B%E3%82%8B%E3%81%8B%E3%81%9F%E3%81%BE%E3%82%8A)
     - [関数の先頭](#%E9%96%A2%E6%95%B0%E3%81%AE%E5%85%88%E9%A0%AD)
