@@ -3864,6 +3864,8 @@ https://werebug.com/exploit/vulnserver/2019/11/19/vulnserver-kstet-exploit-with-
 vulnerver.exeのstaged-shellcodingの解説。わかりやすい。   
 https://deceiveyour.team/2018/10/15/vulnserver-kstet-ws2_32-recv-function-re-use/   
 vulnerver.exeのstaged-shellcodingの解説。わかりやすい。   
+https://buffered.io/posts/idsecconf-2013-myftpd-challenge/   
+myftpd.exeでsocketの新規作成の解説。VitualProtect関数も使ってるけどなくてもHeap領域のShellcode普通に実行できたぞ…??   
 
 ### fuzzing (SPIKE)
 https://resources.infosecinstitute.com/intro-to-fuzzing/   
