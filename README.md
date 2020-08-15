@@ -2163,6 +2163,7 @@ s.close()
 FTPサーバーなどが対象の場合、攻撃者とソケットが作成されておりそのソケットを使用して`s.recv`で追加のPayloadを注入するが、クライアント側から`s.close`でソケットを閉じないとEIPを操作できない(Stack上コード実行が始まらない)場合、ソケットの再利用ができない。   
 その場合は新たにソケットを`socket(),bind(),listen(),accept,recv()`の順に作成すれば解決する！   
 例）https://buffered.io/posts/idsecconf-2013-myftpd-challenge/   
+以下のStaged Shellcodeだと**サイズは80バイト**になる！！   
 **socket()**   
 ```txt
   block1 = ""
@@ -2261,6 +2262,7 @@ struct sockaddr_in {
   block1 += "\xFF\xD3"                           # CALL EBX
   
 ```
+実行直前   
 ![image](https://user-images.githubusercontent.com/56021519/90308477-daba2f00-df1a-11ea-99ee-1f239826d9d5.png)
 ![image](https://user-images.githubusercontent.com/56021519/90308484-ed346880-df1a-11ea-8937-7f1e19314ecf.png)   
 accept()実行後の戻り値(受け付けたソケットのファイルディスクリプター)として`0xA4`が返ってくる。
