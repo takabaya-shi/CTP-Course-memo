@@ -54,6 +54,8 @@
     - [short jmpコードの作成](#short-jmp%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E4%BD%9C%E6%88%90)
     - [Unicode対応のPayloadの作成](#unicode%E5%AF%BE%E5%BF%9C%E3%81%AEpayload%E3%81%AE%E4%BD%9C%E6%88%90)
   - [staged-shellcoding](#staged-shellcoding)
+    - [socket reuse](#socket-reuse)
+    - [新規socket作成](#%E6%96%B0%E8%A6%8Fsocket%E4%BD%9C%E6%88%90)
   - [fuzzing (SPIKE)](#fuzzing-spike)
     - [基本](#%E5%9F%BA%E6%9C%AC)
     - [ソケット通信時のパケット](#%E3%82%BD%E3%82%B1%E3%83%83%E3%83%88%E9%80%9A%E4%BF%A1%E6%99%82%E3%81%AE%E3%83%91%E3%82%B1%E3%83%83%E3%83%88)
