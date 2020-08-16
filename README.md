@@ -3895,3 +3895,11 @@ PEの説明。
 http://hp.vector.co.jp/authors/VA050396/tech_11.html   
 再配置情報について書いてある。   
 
+#### OSCE-review
+https://jhalon.github.io/OSCE-Review/   
+いろいろ練習教材が載っている。神。   
+https://infosecwonderland.com/2019/02/03/journey-to-osce/   
+練習教材が載っている。   
+https://coffeegist.com/security/my-osce-review/   
+https://tulpa-security.com/2017/07/18/288/   
+https://www.abatchy.com/2017/03/osce-study-plan   
