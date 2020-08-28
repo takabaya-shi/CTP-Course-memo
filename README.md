@@ -1,6 +1,7 @@
 はじめはCTF用にまとめてたんですが、もはやCTPコースのためのまとめと化しています。   
 Windows32bitメインでCTF要素はほぼありません、すんません…   
 なので、一部CTPコース(従来のOSCE)とは関係無いLinuxの話も混ざってますがご容赦ください。(__)   
+**(注意)自分はまだCTPコース受験してません。あくまでReviewを参考にして勉強した自分の雑なまとめです。**   
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
